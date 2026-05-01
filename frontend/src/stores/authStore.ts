@@ -1,28 +1,44 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-
-const ADMIN_USER = 'admin'
-const ADMIN_PASS = 'admin123'
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { auth } from '../lib/firebase'
 
 interface AuthState {
   isAdmin: boolean
-  login: (user: string, pass: string) => boolean
-  logout: () => void
+  ready: boolean
+  userEmail: string | null
+  init: () => void
+  login: (user: string, pass: string) => Promise<boolean>
+  logout: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      isAdmin: false,
-      login: (user, pass) => {
-        if (user === ADMIN_USER && pass === ADMIN_PASS) {
-          set({ isAdmin: true })
-          return true
-        }
-        return false
-      },
-      logout: () => set({ isAdmin: false }),
-    }),
-    { name: 'auth-storage' }
-  )
-)
+let authListenerStarted = false
+
+export const useAuthStore = create<AuthState>()((set) => ({
+  isAdmin: false,
+  ready: false,
+  userEmail: null,
+  init: () => {
+    if (authListenerStarted) return
+    authListenerStarted = true
+
+    onAuthStateChanged(auth, (user) => {
+      set({
+        isAdmin: Boolean(user),
+        ready: true,
+        userEmail: user?.email ?? null,
+      })
+    })
+  },
+  login: async (user, pass) => {
+    try {
+      await signInWithEmailAndPassword(auth, user, pass)
+      return true
+    } catch {
+      return false
+    }
+  },
+  logout: async () => {
+    await signOut(auth)
+    set({ isAdmin: false, userEmail: null })
+  },
+}))

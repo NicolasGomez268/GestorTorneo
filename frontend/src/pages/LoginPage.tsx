@@ -6,6 +6,7 @@ export default function LoginPage() {
   const [user, setUser]   = useState('')
   const [pass, setPass]   = useState('')
   const [error, setError] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const login   = useAuthStore((s) => s.login)
   const isAdmin = useAuthStore((s) => s.isAdmin)
@@ -16,9 +17,11 @@ export default function LoginPage() {
     if (isAdmin) navigate('/admin', { replace: true })
   }, [isAdmin, navigate])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const ok = login(user, pass)
+    setLoading(true)
+    const ok = await login(user, pass)
+    setLoading(false)
     if (ok) navigate('/admin', { replace: true })
     else setError(true)
   }
@@ -66,9 +69,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="mt-2 w-full bg-[#FF6B00] text-black font-black py-4 tracking-widest uppercase text-sm hover:bg-[#CC5500] transition-colors"
+            className="mt-2 w-full bg-[#FF6B00] text-black font-black py-4 tracking-widest uppercase text-sm hover:bg-[#CC5500] transition-colors disabled:opacity-60"
+            disabled={loading}
           >
-            Ingresar
+            {loading ? 'Validando...' : 'Ingresar'}
           </button>
         </form>
       </div>

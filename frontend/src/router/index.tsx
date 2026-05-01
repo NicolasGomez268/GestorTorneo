@@ -18,6 +18,12 @@ import V10_Mesa       from '../pages/admin/V10_Mesa'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAdmin = useAuthStore((s) => s.isAdmin)
+  const ready = useAuthStore((s) => s.ready)
+
+  if (!ready) {
+    return <div className="p-4 text-xs text-[#888]">Cargando...</div>
+  }
+
   return isAdmin ? <>{children}</> : <Navigate to="/login" replace />
 }
 
