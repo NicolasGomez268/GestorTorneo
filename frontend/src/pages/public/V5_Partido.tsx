@@ -1,16 +1,15 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
 import html2canvas from 'html2canvas'
-import { partidos }       from '../../data/partidos'
+import { useAdminStore }  from '../../stores/adminStore'
 import { statsJugadores } from '../../data/statsJugadores'
-import { equipos }        from '../../data/equipos'
-import { divisiones }     from '../../data/divisiones'
 import Container          from '../../components/Container'
 import EquipoLogo         from '../../components/EquipoLogo'
 
 export default function V5_Partido() {
   const { torneoId, divId, partidoId } = useParams()
   const navigate = useNavigate()
+  const { partidos, equipos, divisiones } = useAdminStore()
 
   const [boxTab, setBoxTab]         = useState<'local' | 'visitante'>('local')
   const [modalGol, setModalGol]     = useState(false)

@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { divisiones as divsMock } from '../../data/divisiones'
-import { equipos as equiposMock }  from '../../data/equipos'
-import { partidos as partidosMock } from '../../data/partidos'
+import { useAdminStore } from '../../stores/adminStore'
 import type { Partido, RondaPartido } from '../../data/tipos'
 import EquipoLogo from '../../components/EquipoLogo'
 
@@ -16,9 +14,9 @@ const LABEL_RONDA: Record<string, string> = {
 }
 
 export default function V9_Fixture() {
-  const [divId,        setDivId]        = useState(divsMock[0]?.id ?? '')
-  const [partidosList, setPartidosList] = useState<Partido[]>(partidosMock)
-  const [formOpen,     setFormOpen]     = useState(false)
+  const { divisiones, equipos: equiposMock, partidos: partidosMock, addPartido, removePartido } = useAdminStore()
+  const [divId,    setDivId]    = useState(divisiones[0]?.id ?? '')
+  const [formOpen, setFormOpen] = useState(false)
 
   const [formP, setFormP] = useState({
     localId:     '',
@@ -31,7 +29,7 @@ export default function V9_Fixture() {
   const [errP, setErrP] = useState('')
 
   const equiposDiv  = equiposMock.filter((e) => e.divisionId === divId)
-  const partidosDiv = partidosList
+  const partidosDiv = partidosMock
     .filter((p) => p.divisionId === divId)
     .sort((a, b) => {
       if (a.fase !== b.fase) return a.fase === 'regular' ? -1 : 1
@@ -77,18 +75,14 @@ export default function V9_Fixture() {
       fase:        formP.fase,
       ronda:       formP.fase === 'playoff' ? formP.ronda : null,
     }
-    setPartidosList((p) => [...p, nuevo])
+    addPartido(nuevo)
     setFormP({ localId: '', visitanteId: '', fechaHora: '', fase: 'regular', fechaNumero: '1', ronda: 'semifinal' })
     setErrP('')
     setFormOpen(false)
-    // TODO: conectar con backend
   }
 
   /* ── Eliminar partido pendiente ── */
-  const handleEliminarPartido = (id: string) => {
-    setPartidosList((p) => p.filter((x) => x.id !== id))
-    // TODO: conectar con backend
-  }
+  const handleEliminarPartido = (id: string) => removePartido(id)
 
   const localPreview    = equiposDiv.find((eq) => eq.id === formP.localId)
   const visitantePreview = equiposDiv.find((eq) => eq.id === formP.visitanteId)
@@ -108,7 +102,7 @@ export default function V9_Fixture() {
             onChange={(e) => { setDivId(e.target.value); setFormOpen(false) }}
             className={SELECT_CLS}
           >
-            {divsMock.map((d) => (
+            {divisiones.map((d) => (
               <option key={d.id} value={d.id}>{d.nombre}</option>
             ))}
           </select>

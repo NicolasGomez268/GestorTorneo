@@ -1,14 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { equipos }   from '../../data/equipos'
-import { jugadores } from '../../data/jugadores'
-import { partidos }  from '../../data/partidos'
-import { divisiones } from '../../data/divisiones'
+import { useAdminStore } from '../../stores/adminStore'
 import Container     from '../../components/Container'
 import EquipoLogo    from '../../components/EquipoLogo'
 
 export default function V4_Equipo() {
   const { torneoId, divId, equipoId } = useParams()
   const navigate = useNavigate()
+  const { equipos, jugadores, partidos, divisiones } = useAdminStore()
 
   const equipo   = equipos.find((e) => e.id === equipoId)
   const division = divisiones.find((d) => d.id === divId)
@@ -63,7 +61,7 @@ export default function V4_Equipo() {
 
           <div className="flex items-center gap-5">
             {/* Logo grande */}
-            <EquipoLogo nombre={equipo.nombre} color={equipo.color} size="xl" />
+            <EquipoLogo nombre={equipo.nombre} color={equipo.color} logoUrl={equipo.logoUrl} size="xl" />
 
             <div>
               <p className="text-[#888] text-[10px] font-black tracking-widest uppercase mb-1">
@@ -107,6 +105,13 @@ export default function V4_Equipo() {
           </div>
 
           <div className="border border-[#2A2A2A]">
+            {roster.length === 0 && (
+              <div className="py-8 text-center">
+                <p className="text-[#555] font-black text-xs uppercase tracking-widest">
+                  Sin jugadores registrados
+                </p>
+              </div>
+            )}
             {roster.map((j, idx) => (
               <div
                 key={j.id}

@@ -1,13 +1,11 @@
 import { useNavigate, useParams } from 'react-router-dom'
-import { torneos } from '../../data/torneos'
-import { divisiones } from '../../data/divisiones'
-import { equipos } from '../../data/equipos'
-import { jugadores } from '../../data/jugadores'
+import { useAdminStore } from '../../stores/adminStore'
 import Container from '../../components/Container'
 
 export default function V2_Divisiones() {
   const { torneoId } = useParams()
   const navigate     = useNavigate()
+  const { torneos, divisiones, equipos, jugadores } = useAdminStore()
 
   const torneo = torneos.find((t) => t.id === torneoId)
   const divs   = divisiones.filter((d) => d.torneoId === torneoId)
@@ -38,6 +36,14 @@ export default function V2_Divisiones() {
 
         {/* Grilla de divisiones */}
         <div className={`pb-10 grid gap-3 ${divs.length >= 2 ? 'sm:grid-cols-2' : ''} ${divs.length >= 3 ? 'lg:grid-cols-3' : ''}`}>
+          {divs.length === 0 && (
+            <div className="border border-[#2A2A2A] p-14 text-center">
+              <p className="text-[#2A2A2A] font-black text-7xl leading-none mb-4">—</p>
+              <p className="text-[#555] font-black text-xs uppercase tracking-widest">
+                Sin divisiones en este torneo
+              </p>
+            </div>
+          )}
           {divs.map((div) => {
             const eqs  = equipos.filter((e) => e.divisionId === div.id)
             const jugs = jugadores.filter((j) => eqs.some((e) => e.id === j.equipoId))

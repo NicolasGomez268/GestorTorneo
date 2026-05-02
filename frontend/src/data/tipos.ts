@@ -35,6 +35,7 @@ export interface Jugador {
   apellido: string
   dorsal: number
   posicion?: string
+  fotoUrl?: string
 }
 
 export type EstadoPartido = 'pendiente' | 'jugado'

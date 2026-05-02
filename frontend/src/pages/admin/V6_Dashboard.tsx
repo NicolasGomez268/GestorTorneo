@@ -25,7 +25,7 @@ const CARDS = [
     icon:  <FixtureIcon />,
   },
   {
-    to:    '/admin/fixture',
+    to:    '/admin/mesa',
     label: 'Mesa de Control',
     desc:  'Cargá estadísticas en vivo y manejá el tanteador.',
     cta:   'INICIAR',
@@ -70,7 +70,15 @@ export default function V6_Dashboard() {
         {CARDS.map((card) => (
           <button
             key={card.label}
-            onClick={() => navigate(card.to)}
+            onClick={() => {
+              if (card.mesa) {
+                const primer = partidos.find((p) => p.estado === 'pendiente')
+                if (!primer) { alert('No hay partidos pendientes para controlar.'); return }
+                navigate(`/admin/mesa/${primer.id}`)
+              } else {
+                navigate(card.to)
+              }
+            }}
             className="w-full text-left bg-[#131313] border border-[#2A2A2A] p-5 hover:border-[#FF6B00]/40 active:bg-[#1A1A1A] transition-colors group"
           >
             <div className="flex items-start justify-between gap-3 mb-4">
@@ -109,7 +117,10 @@ export default function V6_Dashboard() {
             <p className="text-black/70 text-xs font-black uppercase tracking-wider mt-1">Partidos pendientes</p>
           </div>
         </div>
-        <button className="w-full bg-black text-white font-black text-xs tracking-widest uppercase py-3 hover:bg-[#131313] transition-colors">
+        <button
+          onClick={() => window.print()}
+          className="w-full bg-black text-white font-black text-xs tracking-widest uppercase py-3 hover:bg-[#131313] transition-colors"
+        >
           GENERAR REPORTE
         </button>
       </div>

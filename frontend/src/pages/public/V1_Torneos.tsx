@@ -1,7 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { torneos } from '../../data/torneos'
-import { divisiones } from '../../data/divisiones'
-import { equipos } from '../../data/equipos'
+import { useAdminStore } from '../../stores/adminStore'
 import Container from '../../components/Container'
 import type { Torneo } from '../../data/tipos'
 
@@ -13,6 +11,7 @@ const estadoBadge: Record<Torneo['estado'], { label: string; cls: string }> = {
 
 export default function V1_Torneos() {
   const navigate = useNavigate()
+  const { torneos, divisiones, equipos } = useAdminStore()
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
@@ -29,6 +28,14 @@ export default function V1_Torneos() {
 
         {/* Cards — centradas en desktop con max-width */}
         <div className="max-w-[640px] lg:mx-auto pb-10 flex flex-col gap-4">
+          {torneos.length === 0 && (
+            <div className="border border-[#2A2A2A] p-14 text-center">
+              <p className="text-[#2A2A2A] font-black text-7xl leading-none mb-4">—</p>
+              <p className="text-[#555] font-black text-xs uppercase tracking-widest">
+                No hay torneos disponibles
+              </p>
+            </div>
+          )}
           {torneos.map((torneo) => {
             const badge   = estadoBadge[torneo.estado]
             const divs    = divisiones.filter((d) => d.torneoId === torneo.id)

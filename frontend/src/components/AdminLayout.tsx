@@ -13,7 +13,12 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
       <header className="bg-[#131313] border-b border-[#2A2A2A] px-4 py-3 flex items-center justify-between">
-        <span className="text-[#FF6B00] font-black text-xl tracking-wider italic">MI TORNEO</span>
+        <button
+          onClick={() => navigate('/')}
+          className="text-[#FF6B00] font-black text-xl tracking-wider italic hover:text-[#CC5500] transition-colors"
+        >
+          MI TORNEO
+        </button>
         <div className="flex items-center gap-4">
           <nav className="hidden sm:flex gap-2 text-xs font-bold tracking-wider uppercase">
             {[

@@ -1,33 +1,46 @@
-import { useState } from 'react'
-import { divisiones as divsMock }    from '../../data/divisiones'
-import { equipos as equiposMock }    from '../../data/equipos'
-import { jugadores as jugadoresMock } from '../../data/jugadores'
+import { useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAdminStore } from '../../stores/adminStore'
 import type { Equipo, Jugador } from '../../data/tipos'
 import EquipoLogo from '../../components/EquipoLogo'
 
-const COLORES_PRESET = [
-  '#FF6B00','#E74C3C','#9B59B6','#2980B9','#1ABC9C',
-  '#F39C12','#27AE60','#C0392B','#8E44AD','#ECF0F1',
-]
-
 export default function V8_Equipos() {
-  const [divId,         setDivId]         = useState(divsMock[0]?.id ?? '')
-  const [equiposList,   setEquiposList]   = useState<Equipo[]>(equiposMock)
-  const [jugadoresList, setJugadoresList] = useState<Jugador[]>(jugadoresMock)
-  const [equipoSel,     setEquipoSel]     = useState<string | null>(null)
+  const {
+    torneos, divisiones,
+    equipos:   equiposList,
+    jugadores: jugadoresList,
+    addEquipo, removeEquipo, updateEquipo,
+    addJugador, removeJugador, updateJugador,
+  } = useAdminStore()
 
-  // Form equipo
-  const [formEq,  setFormEq]  = useState({ nombre: '', color: '#FF6B00' })
-  const [errEq,   setErrEq]   = useState('')
+  const navigate = useNavigate()
+  const [torneoId,  setTorneoId]  = useState(torneos[0]?.id ?? '')
+  const [divId,     setDivId]     = useState(() => divisiones.find(d => d.torneoId === torneos[0]?.id)?.id ?? '')
+  const [equipoSel, setEquipoSel] = useState<string | null>(null)
 
-  // Form jugador (crear)
-  const [formJug, setFormJug] = useState({ nombre: '', apellido: '', dorsal: '', posicion: '' })
-  const [errJug,  setErrJug]  = useState('')
+  const divsDeTorneo = divisiones.filter((d) => d.torneoId === torneoId)
 
-  // Edición inline de jugador
+  /* ── Form crear equipo ── */
+  const [formEq,     setFormEq]     = useState({ nombre: '', logoUrl: '' })
+  const [errEq,      setErrEq]      = useState('')
+  const logoInputRef = useRef<HTMLInputElement>(null)
+
+  /* ── Edición inline equipo ── */
+  const [editEquipo,  setEditEquipo]  = useState(false)
+  const [formEditEq,  setFormEditEq]  = useState({ nombre: '', logoUrl: '' })
+  const [errEditEq,   setErrEditEq]   = useState('')
+  const editEqLogoRef = useRef<HTMLInputElement>(null)
+
+  /* ── Form crear jugador ── */
+  const [formJug,    setFormJug]    = useState({ nombre: '', apellido: '', dorsal: '', posicion: '', fotoUrl: '' })
+  const [errJug,     setErrJug]     = useState('')
+  const fotoJugRef = useRef<HTMLInputElement>(null)
+
+  /* ── Edición inline jugador ── */
   const [editJugId,   setEditJugId]   = useState<string | null>(null)
-  const [formEditJug, setFormEditJug] = useState({ nombre: '', apellido: '', dorsal: '', posicion: '' })
+  const [formEditJug, setFormEditJug] = useState({ nombre: '', apellido: '', dorsal: '', posicion: '', fotoUrl: '' })
   const [errEditJug,  setErrEditJug]  = useState('')
+  const editFotoJugRef = useRef<HTMLInputElement>(null)
 
   const equiposDiv   = equiposList.filter((e) => e.divisionId === divId)
   const equipoActual = equiposList.find((e) => e.id === equipoSel)
@@ -35,10 +48,66 @@ export default function V8_Equipos() {
     .filter((j) => j.equipoId === equipoSel)
     .sort((a, b) => a.dorsal - b.dorsal)
 
+  /* ── Cambiar torneo ── */
+  const handleChangeTorneo = (id: string) => {
+    setTorneoId(id)
+    const primeraDiv = divisiones.find((d) => d.torneoId === id)?.id ?? ''
+    setDivId(primeraDiv)
+    setEquipoSel(null)
+    setEditEquipo(false)
+    setEditJugId(null)
+  }
+
+  /* ── Cambiar división ── */
+  const handleChangeDiv = (id: string) => {
+    setDivId(id)
+    setEquipoSel(null)
+    setEditEquipo(false)
+    setEditJugId(null)
+  }
+
+  /* ── Logo equipo (crear) ── */
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setFormEq((p) => ({ ...p, logoUrl: ev.target?.result as string }))
+    reader.readAsDataURL(file)
+  }
+
+  /* ── Logo equipo (editar) ── */
+  const handleEditEqLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setFormEditEq((p) => ({ ...p, logoUrl: ev.target?.result as string }))
+    reader.readAsDataURL(file)
+  }
+
+  /* ── Foto jugador (crear) ── */
+  const handleFotoJugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setFormJug((p) => ({ ...p, fotoUrl: ev.target?.result as string }))
+    reader.readAsDataURL(file)
+  }
+
+  /* ── Foto jugador (editar) ── */
+  const handleEditFotoJugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setFormEditJug((p) => ({ ...p, fotoUrl: ev.target?.result as string }))
+    reader.readAsDataURL(file)
+  }
+
   /* ── Crear equipo ── */
   const handleCrearEq = (e: { preventDefault(): void }) => {
     e.preventDefault()
     if (!formEq.nombre.trim()) { setErrEq('El nombre es obligatorio'); return }
+    if (!formEq.logoUrl)       { setErrEq('Cargá una imagen de logo'); return }
+    if (!divId)                { setErrEq('Seleccioná una división'); return }
     if (equiposDiv.some((eq) => eq.nombre.toLowerCase() === formEq.nombre.trim().toLowerCase())) {
       setErrEq('Ya existe un equipo con ese nombre en esta división'); return
     }
@@ -46,22 +115,43 @@ export default function V8_Equipos() {
       id:         `eq-${Date.now()}`,
       divisionId: divId,
       nombre:     formEq.nombre.trim(),
-      color:      formEq.color,
-      logoUrl:    undefined,
+      color:      '#1A1A1A',
+      logoUrl:    formEq.logoUrl,
       PJ: 0, PG: 0, PP: 0, PT: 0,
     }
-    setEquiposList((p) => [...p, nuevo])
-    setFormEq({ nombre: '', color: '#FF6B00' })
+    addEquipo(nuevo)
+    setFormEq({ nombre: '', logoUrl: '' })
     setErrEq('')
-    // TODO: conectar con backend
+    if (logoInputRef.current) logoInputRef.current.value = ''
   }
 
   /* ── Eliminar equipo ── */
   const handleEliminarEq = (id: string) => {
-    setEquiposList((p) => p.filter((e) => e.id !== id))
-    setJugadoresList((p) => p.filter((j) => j.equipoId !== id))
-    if (equipoSel === id) setEquipoSel(null)
-    // TODO: conectar con backend
+    removeEquipo(id)
+    if (equipoSel === id) { setEquipoSel(null); setEditEquipo(false) }
+  }
+
+  /* ── Iniciar edición equipo ── */
+  const handleIniciarEditEq = () => {
+    if (!equipoActual) return
+    setFormEditEq({ nombre: equipoActual.nombre, logoUrl: equipoActual.logoUrl ?? '' })
+    setErrEditEq('')
+    setEditEquipo(true)
+    setEditJugId(null)
+  }
+
+  /* ── Guardar edición equipo ── */
+  const handleGuardarEditEq = () => {
+    if (!equipoActual) return
+    if (!formEditEq.nombre.trim()) { setErrEditEq('El nombre es obligatorio'); return }
+    if (!formEditEq.logoUrl)       { setErrEditEq('El logo es obligatorio'); return }
+    updateEquipo(equipoActual.id, {
+      nombre:  formEditEq.nombre.trim(),
+      logoUrl: formEditEq.logoUrl,
+    })
+    setEditEquipo(false)
+    setErrEditEq('')
+    if (editEqLogoRef.current) editEqLogoRef.current.value = ''
   }
 
   /* ── Crear jugador ── */
@@ -79,27 +169,32 @@ export default function V8_Equipos() {
       apellido: formJug.apellido.trim(),
       dorsal,
       posicion: formJug.posicion || undefined,
+      fotoUrl:  formJug.fotoUrl  || undefined,
     }
-    setJugadoresList((p) => [...p, nuevo])
-    setFormJug({ nombre: '', apellido: '', dorsal: '', posicion: '' })
+    addJugador(nuevo)
+    setFormJug({ nombre: '', apellido: '', dorsal: '', posicion: '', fotoUrl: '' })
     setErrJug('')
-    // TODO: conectar con backend
+    if (fotoJugRef.current) fotoJugRef.current.value = ''
   }
 
   /* ── Eliminar jugador ── */
-  const handleEliminarJug = (id: string) => {
-    setJugadoresList((p) => p.filter((j) => j.id !== id))
-    // TODO: conectar con backend
-  }
+  const handleEliminarJug = (id: string) => removeJugador(id)
 
-  /* ── Iniciar edición inline ── */
+  /* ── Iniciar edición jugador ── */
   const handleIniciarEdit = (j: Jugador) => {
     setEditJugId(j.id)
-    setFormEditJug({ nombre: j.nombre, apellido: j.apellido, dorsal: String(j.dorsal), posicion: j.posicion ?? '' })
+    setFormEditJug({
+      nombre:   j.nombre,
+      apellido: j.apellido,
+      dorsal:   String(j.dorsal),
+      posicion: j.posicion ?? '',
+      fotoUrl:  j.fotoUrl  ?? '',
+    })
     setErrEditJug('')
+    setEditEquipo(false)
   }
 
-  /* ── Guardar edición inline ── */
+  /* ── Guardar edición jugador ── */
   const handleGuardarEdit = (jugadorId: string) => {
     if (!formEditJug.nombre.trim())   { setErrEditJug('El nombre es obligatorio'); return }
     if (!formEditJug.apellido.trim()) { setErrEditJug('El apellido es obligatorio'); return }
@@ -108,39 +203,63 @@ export default function V8_Equipos() {
     if (jugadoresEq.some((j) => j.dorsal === dorsal && j.id !== jugadorId)) {
       setErrEditJug('Ese dorsal ya está en uso'); return
     }
-    setJugadoresList((p) =>
-      p.map((j) =>
-        j.id === jugadorId
-          ? { ...j, nombre: formEditJug.nombre.trim(), apellido: formEditJug.apellido.trim(), dorsal, posicion: formEditJug.posicion || undefined }
-          : j
-      )
-    )
+    updateJugador(jugadorId, {
+      nombre:   formEditJug.nombre.trim(),
+      apellido: formEditJug.apellido.trim(),
+      dorsal,
+      posicion: formEditJug.posicion || undefined,
+      fotoUrl:  formEditJug.fotoUrl  || undefined,
+    })
     setEditJugId(null)
     setErrEditJug('')
-    // TODO: conectar con backend
+    if (editFotoJugRef.current) editFotoJugRef.current.value = ''
   }
 
   return (
     <div>
+      <button
+        onClick={() => navigate('/admin')}
+        className="flex items-center gap-1.5 text-[#555] hover:text-white text-[10px] font-black tracking-widest uppercase transition-colors mb-6"
+      >
+        ← Panel de control
+      </button>
+
       <h1 className="text-white font-black text-2xl lg:text-3xl italic uppercase mb-6">
         Equipos y Jugadores
       </h1>
 
-      {/* Selector de división */}
-      <div className="mb-6">
-        <label className={LABEL_CLS}>División</label>
-        <select
-          value={divId}
-          onChange={(e) => { setDivId(e.target.value); setEquipoSel(null); setEditJugId(null) }}
-          className={SELECT_CLS}
-        >
-          {divsMock.map((d) => (
-            <option key={d.id} value={d.id}>{d.nombre}</option>
-          ))}
-        </select>
+      {/* Selectores torneo + división */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+        <div>
+          <label className={LABEL_CLS}>Torneo</label>
+          <select
+            value={torneoId}
+            onChange={(e) => handleChangeTorneo(e.target.value)}
+            className={SELECT_CLS}
+          >
+            {torneos.map((t) => (
+              <option key={t.id} value={t.id}>{t.nombre} — {t.temporada}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={LABEL_CLS}>División</label>
+          <select
+            value={divId}
+            onChange={(e) => handleChangeDiv(e.target.value)}
+            className={SELECT_CLS}
+            disabled={divsDeTorneo.length === 0}
+          >
+            {divsDeTorneo.length === 0
+              ? <option>Sin divisiones</option>
+              : divsDeTorneo.map((d) => (
+                  <option key={d.id} value={d.id}>{d.nombre}</option>
+                ))
+            }
+          </select>
+        </div>
       </div>
 
-      {/* Layout: 1 col mobile, 2 col desktop cuando hay equipo seleccionado */}
       <div className={`grid gap-4 ${equipoSel ? 'lg:grid-cols-2' : 'grid-cols-1'}`}>
 
         {/* ── Columna izquierda: lista de equipos ── */}
@@ -154,10 +273,13 @@ export default function V8_Equipos() {
                     ${equipoSel === eq.id
                       ? 'bg-[#1A1A1A] border-[#FF6B00]/40'
                       : 'bg-[#131313] border-[#2A2A2A] hover:border-[#444]'}`}
-                  onClick={() => { setEquipoSel(equipoSel === eq.id ? null : eq.id); setEditJugId(null) }}
+                  onClick={() => {
+                    setEquipoSel(equipoSel === eq.id ? null : eq.id)
+                    setEditEquipo(false)
+                    setEditJugId(null)
+                  }}
                 >
-                  <div className="w-0.5 h-8 shrink-0" style={{ backgroundColor: eq.color }} />
-                  <EquipoLogo nombre={eq.nombre} color={eq.color} size="sm" />
+                  <EquipoLogo nombre={eq.nombre} color={eq.color} logoUrl={eq.logoUrl} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-bold text-sm truncate">{eq.nombre}</p>
                     <p className="text-[#555] text-[10px] font-bold uppercase tracking-wider">
@@ -175,100 +297,176 @@ export default function V8_Equipos() {
             </div>
           )}
 
-          {equiposDiv.length === 0 && (
+          {equiposDiv.length === 0 && divId && (
             <p className="text-[#444] text-xs font-bold tracking-widest uppercase mb-4">
               Sin equipos en esta división
             </p>
           )}
 
           {/* Form nuevo equipo */}
-          <div className="bg-[#131313] border border-[#2A2A2A] p-4">
-            <p className="text-white font-black text-sm uppercase tracking-wider mb-4">+ Agregar equipo</p>
-            <form onSubmit={handleCrearEq} className="flex flex-col gap-4">
-              <div>
-                <label className={LABEL_CLS}>Nombre del equipo</label>
-                <input
-                  type="text"
-                  value={formEq.nombre}
-                  onChange={(e) => { setFormEq((p) => ({ ...p, nombre: e.target.value })); setErrEq('') }}
-                  placeholder="Ej: Shadow Titans"
-                  className={INPUT_CLS}
-                />
-              </div>
-
-              {/* Preview del logo */}
-              {formEq.nombre.trim() && (
-                <div className="flex items-center gap-3 py-1">
-                  <EquipoLogo nombre={formEq.nombre} color={formEq.color} size="md" />
-                  <div>
-                    <p className="text-[#555] text-[10px] font-black tracking-widest uppercase">Preview</p>
-                    <p className="text-white text-sm font-bold">{formEq.nombre.trim()}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Selector de color */}
-              <div>
-                <label className={LABEL_CLS}>Color del equipo</label>
-                <div className="flex items-center gap-3 flex-wrap">
-                  {COLORES_PRESET.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setFormEq((p) => ({ ...p, color: c }))}
-                      className={`w-7 h-7 transition-transform ${formEq.color === c ? 'scale-125 ring-2 ring-white ring-offset-1 ring-offset-[#131313]' : ''}`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
+          {divId && (
+            <div className="bg-[#131313] border border-[#2A2A2A] p-4">
+              <p className="text-white font-black text-sm uppercase tracking-wider mb-4">+ Agregar equipo</p>
+              <form onSubmit={handleCrearEq} className="flex flex-col gap-4">
+                <div>
+                  <label className={LABEL_CLS}>Nombre del equipo</label>
                   <input
-                    type="color"
-                    value={formEq.color}
-                    onChange={(e) => setFormEq((p) => ({ ...p, color: e.target.value }))}
-                    className="w-7 h-7 cursor-pointer bg-transparent border-0 p-0"
-                    title="Color personalizado"
+                    type="text"
+                    value={formEq.nombre}
+                    onChange={(e) => { setFormEq((p) => ({ ...p, nombre: e.target.value })); setErrEq('') }}
+                    placeholder="Ej: Shadow Titans"
+                    className={INPUT_CLS}
                   />
                 </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="w-5 h-5" style={{ backgroundColor: formEq.color }} />
-                  <span className="text-[#888] text-xs font-mono">{formEq.color}</span>
+
+                <div>
+                  <label className={LABEL_CLS}>Logo del equipo</label>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="border border-dashed border-[#2A2A2A] group-hover:border-[#FF6B00]/50 transition-colors px-4 py-3 flex-1 text-center">
+                      <p className="text-[#555] text-xs font-bold tracking-wider">
+                        {formEq.logoUrl ? 'Cambiar imagen' : 'Seleccionar imagen'}
+                      </p>
+                      <p className="text-[#333] text-[10px] mt-0.5">PNG, JPG, SVG</p>
+                    </div>
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                      className="hidden"
+                    />
+                    {formEq.logoUrl && (
+                      <div className="w-14 h-14 shrink-0 bg-[#1A1A1A] border border-[#2A2A2A] overflow-hidden">
+                        <img src={formEq.logoUrl} alt="preview" className="w-full h-full object-contain" />
+                      </div>
+                    )}
+                  </label>
                 </div>
-              </div>
 
-              {errEq && <p className="text-[#FF4444] text-xs font-bold">{errEq}</p>}
+                {formEq.nombre.trim() && formEq.logoUrl && (
+                  <div className="flex items-center gap-3 py-1">
+                    <EquipoLogo nombre={formEq.nombre} color="#1A1A1A" logoUrl={formEq.logoUrl} size="md" />
+                    <div>
+                      <p className="text-[#555] text-[10px] font-black tracking-widest uppercase">Preview</p>
+                      <p className="text-white text-sm font-bold">{formEq.nombre.trim()}</p>
+                    </div>
+                  </div>
+                )}
 
-              <button type="submit" className={BTN_PRIMARY}>
-                AGREGAR EQUIPO
-              </button>
-            </form>
-          </div>
+                {errEq && <p className="text-[#FF4444] text-xs font-bold">{errEq}</p>}
+
+                <button type="submit" className={BTN_PRIMARY}>
+                  AGREGAR EQUIPO
+                </button>
+              </form>
+            </div>
+          )}
         </div>
 
-        {/* ── Columna derecha: jugadores del equipo seleccionado ── */}
+        {/* ── Columna derecha: jugadores ── */}
         {equipoSel && equipoActual && (
           <div>
-            {/* Header equipo */}
-            <div className="flex items-center gap-3 mb-4 p-3 bg-[#131313] border border-[#2A2A2A]">
-              <EquipoLogo nombre={equipoActual.nombre} color={equipoActual.color} size="md" />
-              <div>
-                <p className="text-white font-black text-base">{equipoActual.nombre}</p>
-                <p className="text-[#555] text-[10px] font-bold uppercase tracking-wider">
-                  {jugadoresEq.length} jugadores
-                </p>
-              </div>
-              <button
-                onClick={() => { setEquipoSel(null); setEditJugId(null) }}
-                className="ml-auto text-[#555] hover:text-white text-lg font-bold leading-none"
-              >
-                ✕
-              </button>
-            </div>
 
-            {/* Lista de jugadores */}
+            {/* Header del equipo */}
+            {editEquipo ? (
+              <div className="bg-[#1A1A1A] border border-[#FF6B00]/30 p-4 mb-4">
+                <p className="text-[#FF6B00] font-black text-xs tracking-widest uppercase mb-3">Editar equipo</p>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className={LABEL_CLS}>Nombre del equipo</label>
+                    <input
+                      type="text"
+                      value={formEditEq.nombre}
+                      onChange={(e) => { setFormEditEq((p) => ({ ...p, nombre: e.target.value })); setErrEditEq('') }}
+                      className={INPUT_CLS}
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLS}>Logo del equipo</label>
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="border border-dashed border-[#2A2A2A] group-hover:border-[#FF6B00]/50 transition-colors px-4 py-3 flex-1 text-center">
+                        <p className="text-[#555] text-xs font-bold tracking-wider">
+                          {formEditEq.logoUrl ? 'Cambiar imagen' : 'Seleccionar imagen'}
+                        </p>
+                        <p className="text-[#333] text-[10px] mt-0.5">PNG, JPG, SVG</p>
+                      </div>
+                      <input
+                        ref={editEqLogoRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEditEqLogoChange}
+                        className="hidden"
+                      />
+                      {formEditEq.logoUrl && (
+                        <div className="w-14 h-14 shrink-0 bg-[#0A0A0A] border border-[#2A2A2A] overflow-hidden">
+                          <img src={formEditEq.logoUrl} alt="preview" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                  {errEditEq && <p className="text-[#FF4444] text-xs font-bold">{errEditEq}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleGuardarEditEq}
+                      className="flex-1 bg-[#FF6B00] text-black font-black py-2 text-xs tracking-widest uppercase hover:bg-[#CC5500] transition-colors"
+                    >
+                      GUARDAR
+                    </button>
+                    <button
+                      onClick={() => { setEditEquipo(false); setErrEditEq('') }}
+                      className="flex-1 bg-[#2A2A2A] text-white font-black py-2 text-xs tracking-widest uppercase hover:bg-[#3A3A3A] transition-colors"
+                    >
+                      CANCELAR
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 mb-4 p-3 bg-[#131313] border border-[#2A2A2A]">
+                <EquipoLogo nombre={equipoActual.nombre} color={equipoActual.color} logoUrl={equipoActual.logoUrl} size="md" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-black text-base truncate">{equipoActual.nombre}</p>
+                  <p className="text-[#555] text-[10px] font-bold uppercase tracking-wider">
+                    {jugadoresEq.length} jugadores
+                  </p>
+                </div>
+                <button
+                  onClick={handleIniciarEditEq}
+                  className="text-[#333] hover:text-[#FF6B00] transition-colors p-1 shrink-0"
+                  title="Editar equipo"
+                >
+                  <EditIcon />
+                </button>
+                <button
+                  onClick={() => { setEquipoSel(null); setEditJugId(null) }}
+                  className="text-[#555] hover:text-white text-lg font-bold leading-none p-1 shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Botón Google Form */}
+            {import.meta.env.VITE_GOOGLE_FORM_JUGADORES && (
+              <a
+                href={import.meta.env.VITE_GOOGLE_FORM_JUGADORES}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full border border-[#2A2A2A] hover:border-[#FF6B00]/40 text-[#888] hover:text-white text-[10px] font-black tracking-widest uppercase py-3 transition-colors mb-4"
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
+                </svg>
+                Formulario de inscripción
+              </a>
+            )}
+
+            {/* Lista jugadores */}
             {jugadoresEq.length > 0 && (
               <div className="flex flex-col mb-4 border border-[#2A2A2A]">
                 {jugadoresEq.map((j, idx) =>
                   editJugId === j.id ? (
-                    /* ── Fila en modo edición ── */
                     <div key={j.id} className="bg-[#1A1A1A] p-3 border-b border-[#2A2A2A]">
                       <div className="grid grid-cols-2 gap-2 mb-2">
                         <div>
@@ -291,7 +489,7 @@ export default function V8_Equipos() {
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="grid grid-cols-2 gap-2 mb-2">
                         <div>
                           <label className={LABEL_CLS}>Dorsal (0–99)</label>
                           <input
@@ -318,6 +516,29 @@ export default function V8_Equipos() {
                           </select>
                         </div>
                       </div>
+                      <div className="mb-3">
+                        <label className={LABEL_CLS}>Foto del jugador</label>
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                          <div className="border border-dashed border-[#2A2A2A] group-hover:border-[#FF6B00]/50 transition-colors px-4 py-2.5 flex-1 text-center">
+                            <p className="text-[#555] text-xs font-bold tracking-wider">
+                              {formEditJug.fotoUrl ? 'Cambiar foto' : 'Seleccionar foto'}
+                            </p>
+                            <p className="text-[#333] text-[10px] mt-0.5">PNG, JPG</p>
+                          </div>
+                          <input
+                            ref={editFotoJugRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleEditFotoJugChange}
+                            className="hidden"
+                          />
+                          {formEditJug.fotoUrl && (
+                            <div className="w-12 h-12 shrink-0 bg-[#0A0A0A] border border-[#2A2A2A] overflow-hidden rounded-full">
+                              <img src={formEditJug.fotoUrl} alt="preview" className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                        </label>
+                      </div>
                       {errEditJug && <p className="text-[#FF4444] text-xs font-bold mb-2">{errEditJug}</p>}
                       <div className="flex gap-2">
                         <button
@@ -335,20 +556,30 @@ export default function V8_Equipos() {
                       </div>
                     </div>
                   ) : (
-                    /* ── Fila en modo display ── */
                     <div
                       key={j.id}
                       className={`flex items-center gap-3 px-3 py-2.5 bg-[#0A0A0A]
                         ${idx < jugadoresEq.length - 1 ? 'border-b border-[#1A1A1A]' : ''}`}
                     >
-                      <div
-                        className="w-8 h-8 flex items-center justify-center font-black text-white text-xs shrink-0"
-                        style={{ backgroundColor: equipoActual.color }}
-                      >
-                        {j.dorsal}
-                      </div>
+                      {j.fotoUrl ? (
+                        <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 border border-[#2A2A2A]">
+                          <img src={j.fotoUrl} alt={j.nombre} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div
+                          className="w-9 h-9 flex items-center justify-center font-black text-white text-xs shrink-0"
+                          style={{ backgroundColor: equipoActual.color }}
+                        >
+                          {j.dorsal}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-bold truncate">{j.apellido}, {j.nombre}</p>
+                        <p className="text-white text-sm font-bold truncate">
+                          {j.apellido}, {j.nombre}
+                          {j.fotoUrl && (
+                            <span className="ml-2 text-[#555] text-[10px] font-bold align-middle">#{j.dorsal}</span>
+                          )}
+                        </p>
                         {j.posicion && (
                           <p className="text-[#555] text-[10px] font-bold uppercase tracking-wider">{j.posicion}</p>
                         )}
@@ -432,6 +663,31 @@ export default function V8_Equipos() {
                       <option>Pívot</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Foto jugador */}
+                <div>
+                  <label className={LABEL_CLS}>Foto del jugador (opcional)</label>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="border border-dashed border-[#2A2A2A] group-hover:border-[#FF6B00]/50 transition-colors px-4 py-2.5 flex-1 text-center">
+                      <p className="text-[#555] text-xs font-bold tracking-wider">
+                        {formJug.fotoUrl ? 'Cambiar foto' : 'Seleccionar foto'}
+                      </p>
+                      <p className="text-[#333] text-[10px] mt-0.5">PNG, JPG</p>
+                    </div>
+                    <input
+                      ref={fotoJugRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFotoJugChange}
+                      className="hidden"
+                    />
+                    {formJug.fotoUrl && (
+                      <div className="w-12 h-12 shrink-0 bg-[#1A1A1A] border border-[#2A2A2A] overflow-hidden rounded-full">
+                        <img src={formJug.fotoUrl} alt="preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </label>
                 </div>
 
                 {errJug && <p className="text-[#FF4444] text-xs font-bold">{errJug}</p>}

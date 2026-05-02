@@ -75,6 +75,13 @@ export default function LoginPage() {
             {loading ? 'Validando...' : 'Ingresar'}
           </button>
         </form>
+
+        <button
+          onClick={() => navigate('/')}
+          className="mt-6 w-full text-[#555] hover:text-white text-xs font-bold tracking-widest uppercase transition-colors"
+        >
+          ← Ver torneos
+        </button>
       </div>
     </div>
   )

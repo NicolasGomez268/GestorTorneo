@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
-import { auth } from '../lib/firebase'
+
+const MOCK_USER = 'admin'
+const MOCK_PASS = 'admin123'
 
 interface AuthState {
   isAdmin: boolean
@@ -11,34 +12,19 @@ interface AuthState {
   logout: () => Promise<void>
 }
 
-let authListenerStarted = false
-
 export const useAuthStore = create<AuthState>()((set) => ({
   isAdmin: false,
-  ready: false,
+  ready: true,
   userEmail: null,
-  init: () => {
-    if (authListenerStarted) return
-    authListenerStarted = true
-
-    onAuthStateChanged(auth, (user) => {
-      set({
-        isAdmin: Boolean(user),
-        ready: true,
-        userEmail: user?.email ?? null,
-      })
-    })
-  },
+  init: () => {},
   login: async (user, pass) => {
-    try {
-      await signInWithEmailAndPassword(auth, user, pass)
+    if (user === MOCK_USER && pass === MOCK_PASS) {
+      set({ isAdmin: true, userEmail: MOCK_USER })
       return true
-    } catch {
-      return false
     }
+    return false
   },
   logout: async () => {
-    await signOut(auth)
     set({ isAdmin: false, userEmail: null })
   },
 }))
