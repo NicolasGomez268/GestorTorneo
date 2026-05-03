@@ -117,18 +117,27 @@ export default function V4_Equipo() {
                 key={j.id}
                 className={`flex items-center gap-4 px-4 py-3 ${idx < roster.length - 1 ? 'border-b border-[#1A1A1A]' : ''}`}
               >
-                {/* Dorsal */}
-                <div
-                  className="w-9 h-9 flex items-center justify-center font-black text-white text-sm shrink-0 font-tabular"
-                  style={{ backgroundColor: equipo.color }}
-                >
-                  {j.dorsal}
-                </div>
+                {/* Foto o dorsal */}
+                {j.fotoUrl ? (
+                  <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-[#2A2A2A]">
+                    <img src={j.fotoUrl} alt={j.nombre} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div
+                    className="w-10 h-10 flex items-center justify-center font-black text-white text-sm shrink-0 font-tabular"
+                    style={{ backgroundColor: equipo.color }}
+                  >
+                    {j.dorsal}
+                  </div>
+                )}
 
-                {/* Nombre */}
+                {/* Nombre + dorsal cuando hay foto */}
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-bold text-sm truncate">
                     {j.apellido}, {j.nombre}
+                    {j.fotoUrl && (
+                      <span className="ml-2 text-[#555] text-[10px] font-black align-middle">#{j.dorsal}</span>
+                    )}
                   </p>
                   {j.posicion && (
                     <p className="text-[#555] text-[10px] font-bold tracking-wider uppercase">
@@ -152,12 +161,16 @@ export default function V4_Equipo() {
                 const dt      = new Date(p.fechaHora)
                 const esLocal = p.local.equipoId === equipoId
                 const rival   = esLocal ? p.visitante : p.local
+                const rivalEq = equipos.find((e) => e.id === rival.equipoId)
+                const rNombre  = rivalEq?.nombre  ?? rival.nombre
+                const rColor   = rivalEq?.color   ?? rival.color
+                const rLogoUrl = rivalEq?.logoUrl ?? rival.logoUrl
                 return (
                   <div key={p.id} className="bg-[#131313] border border-[#2A2A2A] p-4 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <EquipoLogo nombre={rival.nombre} color={rival.color} size="sm" />
+                      <EquipoLogo nombre={rNombre} color={rColor} logoUrl={rLogoUrl} size="sm" />
                       <div className="min-w-0">
-                        <p className="text-white font-bold text-sm truncate">{rival.nombre}</p>
+                        <p className="text-white font-bold text-sm truncate">{rNombre}</p>
                         <p className="text-[#555] text-[10px] font-bold uppercase tracking-wider">
                           {esLocal ? 'Local' : 'Visitante'}
                         </p>
@@ -182,6 +195,10 @@ export default function V4_Equipo() {
         {ultimoResultado && (() => {
           const esLocal    = ultimoResultado.local.equipoId === equipoId
           const rival      = esLocal ? ultimoResultado.visitante : ultimoResultado.local
+          const rivalEquipo = equipos.find((e) => e.id === rival.equipoId)
+          const rivalNombre  = rivalEquipo?.nombre  ?? rival.nombre
+          const rivalColor   = rivalEquipo?.color   ?? rival.color
+          const rivalLogoUrl = rivalEquipo?.logoUrl ?? rival.logoUrl
           const ptsPropio  = esLocal ? ultimoResultado.resultado!.ptsLocal : ultimoResultado.resultado!.ptsVisitante
           const ptsRival   = esLocal ? ultimoResultado.resultado!.ptsVisitante : ultimoResultado.resultado!.ptsLocal
           const gano       = ultimoResultado.resultado!.ganadorId === equipoId
@@ -196,8 +213,8 @@ export default function V4_Equipo() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <EquipoLogo nombre={rival.nombre} color={rival.color} size="sm" />
-                    <p className="text-white font-bold text-sm truncate">vs {rival.nombre}</p>
+                    <EquipoLogo nombre={rivalNombre} color={rivalColor} logoUrl={rivalLogoUrl} size="sm" />
+                    <p className="text-white font-bold text-sm truncate">vs {rivalNombre}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`font-black text-2xl font-tabular ${gano ? 'text-[#FF6B00]' : 'text-white'}`}>

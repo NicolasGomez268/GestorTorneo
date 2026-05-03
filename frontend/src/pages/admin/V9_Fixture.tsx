@@ -1,23 +1,64 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminStore } from '../../stores/adminStore'
-import type { Partido, RondaPartido } from '../../data/tipos'
+import type { Equipo, Partido, RondaPartido } from '../../data/tipos'
 import EquipoLogo from '../../components/EquipoLogo'
 
 const RONDAS: RondaPartido[] = ['octavos', 'cuartos', 'semifinal', 'final']
 
 const LABEL_RONDA: Record<string, string> = {
-  octavos:  'Octavos de Final',
-  cuartos:  'Cuartos de Final',
+  octavos:   'Octavos de Final',
+  cuartos:   'Cuartos de Final',
   semifinal: 'Semifinales',
-  final:    'Final',
+  final:     'Final',
+}
+
+/* ── Algoritmo round-robin ── */
+function generarRoundRobin(equipos: Equipo[]): Array<[Equipo, Equipo][]> {
+  const list: (Equipo | null)[] = [...equipos]
+  if (list.length % 2 !== 0) list.push(null) // bye
+
+  const rounds: Array<[Equipo, Equipo][]> = []
+  const numRounds = list.length - 1
+
+  for (let r = 0; r < numRounds; r++) {
+    const games: [Equipo, Equipo][] = []
+    for (let i = 0; i < list.length / 2; i++) {
+      const home = list[i]
+      const away = list[list.length - 1 - i]
+      if (home && away) games.push([home, away])
+    }
+    rounds.push(games)
+    list.splice(1, 0, list.pop()!)
+  }
+  return rounds
 }
 
 export default function V9_Fixture() {
-  const { divisiones, equipos: equiposMock, partidos: partidosMock, addPartido, removePartido } = useAdminStore()
-  const [divId,    setDivId]    = useState(divisiones[0]?.id ?? '')
-  const [formOpen, setFormOpen] = useState(false)
+  const {
+    torneos, divisiones,
+    equipos: equiposList,
+    partidos: partidosList,
+    addPartido, removePartido,
+  } = useAdminStore()
 
+  const navigate = useNavigate()
+  const [torneoId, setTorneoId] = useState(torneos[0]?.id ?? '')
+  const [divId,    setDivId]    = useState(() => divisiones.find(d => d.torneoId === torneos[0]?.id)?.id ?? '')
+
+  const divsDeTorneo = divisiones.filter((d) => d.torneoId === torneoId)
+
+  /* ── Cambiar torneo ── */
+  const handleChangeTorneo = (id: string) => {
+    setTorneoId(id)
+    const primeraDiv = divisiones.find((d) => d.torneoId === id)?.id ?? ''
+    setDivId(primeraDiv)
+    setFormOpen(false)
+    setGenOpen(false)
+  }
+
+  /* ── Form partido manual ── */
+  const [formOpen, setFormOpen] = useState(false)
   const [formP, setFormP] = useState({
     localId:     '',
     visitanteId: '',
@@ -28,8 +69,18 @@ export default function V9_Fixture() {
   })
   const [errP, setErrP] = useState('')
 
-  const equiposDiv  = equiposMock.filter((e) => e.divisionId === divId)
-  const partidosDiv = partidosMock
+  /* ── Form generador automático ── */
+  const [genOpen, setGenOpen] = useState(false)
+  const [genConfig, setGenConfig] = useState({
+    tipo:            'ida' as 'ida' | 'idavuelta',
+    primeraFecha:    '',
+    hora:            '20:00',
+    diasEntreRondas: '7',
+  })
+  const [errGen, setErrGen] = useState('')
+
+  const equiposDiv  = equiposList.filter((e) => e.divisionId === divId)
+  const partidosDiv = partidosList
     .filter((p) => p.divisionId === divId)
     .sort((a, b) => {
       if (a.fase !== b.fase) return a.fase === 'regular' ? -1 : 1
@@ -39,25 +90,23 @@ export default function V9_Fixture() {
   const regularPartidos = partidosDiv.filter((p) => p.fase === 'regular')
   const playoffPartidos = partidosDiv.filter((p) => p.fase === 'playoff')
 
-  // Agrupar fase regular por fechaNumero
   const fechasMap = regularPartidos.reduce<Record<number, Partido[]>>((acc, p) => {
     ;(acc[p.fechaNumero] ??= []).push(p)
     return acc
   }, {})
 
-  // Agrupar playoff por ronda
   const rondasMap = playoffPartidos.reduce<Record<string, Partido[]>>((acc, p) => {
     const key = p.ronda ?? 'otro'
     ;(acc[key] ??= []).push(p)
     return acc
   }, {})
 
-  /* ── Crear partido ── */
+  /* ── Crear partido manual ── */
   const handleCrearPartido = (e: { preventDefault(): void }) => {
     e.preventDefault()
     if (!formP.localId)     { setErrP('Seleccioná el equipo local'); return }
     if (!formP.visitanteId) { setErrP('Seleccioná el equipo visitante'); return }
-    if (formP.localId === formP.visitanteId) { setErrP('Local y visitante no pueden ser el mismo equipo'); return }
+    if (formP.localId === formP.visitanteId) { setErrP('Local y visitante no pueden ser el mismo'); return }
     if (!formP.fechaHora)   { setErrP('Seleccioná fecha y hora'); return }
 
     const local     = equiposDiv.find((eq) => eq.id === formP.localId)!
@@ -69,8 +118,8 @@ export default function V9_Fixture() {
       divisionId:  divId,
       fechaNumero: fechaNum,
       fechaHora:   formP.fechaHora,
-      local:       { equipoId: local.id,     nombre: local.nombre,     color: local.color },
-      visitante:   { equipoId: visitante.id, nombre: visitante.nombre, color: visitante.color },
+      local:       { equipoId: local.id,     nombre: local.nombre,     color: local.color,     logoUrl: local.logoUrl },
+      visitante:   { equipoId: visitante.id, nombre: visitante.nombre, color: visitante.color, logoUrl: visitante.logoUrl },
       estado:      'pendiente',
       fase:        formP.fase,
       ronda:       formP.fase === 'playoff' ? formP.ronda : null,
@@ -81,47 +130,211 @@ export default function V9_Fixture() {
     setFormOpen(false)
   }
 
-  /* ── Eliminar partido pendiente ── */
-  const handleEliminarPartido = (id: string) => removePartido(id)
+  /* ── Generar fixture automático ── */
+  const handleGenerarFixture = (e: { preventDefault(): void }) => {
+    e.preventDefault()
+    if (equiposDiv.length < 2) { setErrGen('Necesitás al menos 2 equipos en esta división'); return }
+    if (!genConfig.primeraFecha) { setErrGen('Ingresá la fecha de la primera jornada'); return }
+
+    const rounds    = generarRoundRobin(equiposDiv)
+    const numRounds = rounds.length
+    const diasGap   = parseInt(genConfig.diasEntreRondas) || 7
+    const baseDate  = new Date(`${genConfig.primeraFecha}T${genConfig.hora}`)
+    const nuevos: Partido[] = []
+
+    const buildPartidos = (rds: Array<[Equipo, Equipo][]>, offset: number) => {
+      rds.forEach((games, rIdx) => {
+        const dt = new Date(baseDate)
+        dt.setDate(dt.getDate() + (rIdx + offset) * diasGap)
+        const fechaHora = dt.toISOString().slice(0, 16)
+        games.forEach(([local, visitante]) => {
+          nuevos.push({
+            id:          `p-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            divisionId:  divId,
+            fechaNumero: rIdx + 1 + offset * numRounds,
+            fechaHora,
+            local:       { equipoId: local.id,     nombre: local.nombre,     color: local.color,     logoUrl: local.logoUrl },
+            visitante:   { equipoId: visitante.id, nombre: visitante.nombre, color: visitante.color, logoUrl: visitante.logoUrl },
+            estado:      'pendiente',
+            fase:        'regular',
+            ronda:       null,
+          })
+        })
+      })
+    }
+
+    buildPartidos(rounds, 0)
+    if (genConfig.tipo === 'idavuelta') {
+      const vuelta = rounds.map((games) => games.map(([h, a]) => [a, h] as [Equipo, Equipo]))
+      buildPartidos(vuelta, numRounds)
+    }
+
+    nuevos.forEach(addPartido)
+    setGenOpen(false)
+    setErrGen('')
+    setGenConfig({ tipo: 'ida', primeraFecha: '', hora: '20:00', diasEntreRondas: '7' })
+  }
 
   const localPreview    = equiposDiv.find((eq) => eq.id === formP.localId)
   const visitantePreview = equiposDiv.find((eq) => eq.id === formP.visitanteId)
+  const yaHayPartidos   = regularPartidos.length > 0
 
   return (
     <div>
+      <button
+        onClick={() => navigate('/admin')}
+        className="flex items-center gap-1.5 text-[#555] hover:text-white text-[10px] font-black tracking-widest uppercase transition-colors mb-6"
+      >
+        ← Panel de control
+      </button>
+
       <h1 className="text-white font-black text-2xl lg:text-3xl italic uppercase mb-6">
         Armar Fixture
       </h1>
 
-      {/* Barra superior: selector + botón */}
-      <div className="flex items-end gap-3 mb-6">
-        <div className="flex-1">
-          <label className={LABEL_CLS}>División</label>
+      {/* Selectores torneo + división */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <div>
+          <label className={LABEL_CLS}>Torneo</label>
           <select
-            value={divId}
-            onChange={(e) => { setDivId(e.target.value); setFormOpen(false) }}
+            value={torneoId}
+            onChange={(e) => handleChangeTorneo(e.target.value)}
             className={SELECT_CLS}
           >
-            {divisiones.map((d) => (
-              <option key={d.id} value={d.id}>{d.nombre}</option>
+            {torneos.map((t) => (
+              <option key={t.id} value={t.id}>{t.nombre} — {t.temporada}</option>
             ))}
           </select>
         </div>
+        <div>
+          <label className={LABEL_CLS}>División</label>
+          <select
+            value={divId}
+            onChange={(e) => { setDivId(e.target.value); setFormOpen(false); setGenOpen(false) }}
+            className={SELECT_CLS}
+            disabled={divsDeTorneo.length === 0}
+          >
+            {divsDeTorneo.length === 0
+              ? <option>Sin divisiones</option>
+              : divsDeTorneo.map((d) => (
+                  <option key={d.id} value={d.id}>{d.nombre}</option>
+                ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Barra de acciones */}
+      <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setFormOpen((v) => !v)}
-          className="bg-[#FF6B00] text-black font-black py-[11px] px-5 text-sm tracking-widest uppercase hover:bg-[#CC5500] transition-colors shrink-0"
+          onClick={() => { setGenOpen((v) => !v); setFormOpen(false) }}
+          disabled={equiposDiv.length < 2}
+          className={`flex-1 py-[11px] px-4 font-black text-xs tracking-widest uppercase border transition-colors
+            ${genOpen
+              ? 'bg-[#FF6B00] text-black border-[#FF6B00]'
+              : 'bg-transparent text-[#888] border-[#2A2A2A] hover:border-[#FF6B00]/50 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed'}`}
+        >
+          {genOpen ? '✕ CERRAR' : '⚡ GENERAR FIXTURE'}
+        </button>
+        <button
+          onClick={() => { setFormOpen((v) => !v); setGenOpen(false) }}
+          disabled={equiposDiv.length < 2}
+          className="bg-[#FF6B00] text-black font-black py-[11px] px-5 text-xs tracking-widest uppercase hover:bg-[#CC5500] transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {formOpen ? '✕ CERRAR' : '+ PARTIDO'}
         </button>
       </div>
 
-      {/* ── Formulario nuevo partido ── */}
+      {equiposDiv.length < 2 && divId && (
+        <p className="text-[#444] text-[10px] font-bold tracking-widest uppercase mb-6">
+          Necesitás al menos 2 equipos en la división para crear partidos
+        </p>
+      )}
+
+      {/* ── Panel generador automático ── */}
+      {genOpen && (
+        <div className="bg-[#131313] border border-[#FF6B00]/20 p-4 mb-6">
+          <p className="text-[#FF6B00] font-black text-xs tracking-widest uppercase mb-1">Generador round-robin</p>
+          <p className="text-[#555] text-[10px] mb-4">
+            {equiposDiv.length} equipos · {equiposDiv.length % 2 === 0 ? equiposDiv.length - 1 : equiposDiv.length} fechas (solo ida)
+          </p>
+
+          {yaHayPartidos && (
+            <div className="border border-[#F39C12]/30 bg-[#F39C12]/5 px-3 py-2.5 mb-4">
+              <p className="text-[#F39C12] text-[10px] font-black tracking-wider uppercase">
+                Atención: ya hay {regularPartidos.length} partido{regularPartidos.length !== 1 ? 's' : ''} cargado{regularPartidos.length !== 1 ? 's' : ''} en fase regular
+              </p>
+              <p className="text-[#888] text-[10px] mt-0.5">Se agregarán los nuevos sin borrar los existentes.</p>
+            </div>
+          )}
+
+          <form onSubmit={handleGenerarFixture} className="flex flex-col gap-4">
+            {/* Tipo */}
+            <div>
+              <label className={LABEL_CLS}>Tipo de torneo</label>
+              <div className="flex gap-2">
+                {(['ida', 'idavuelta'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setGenConfig((c) => ({ ...c, tipo: t }))}
+                    className={`flex-1 py-2.5 font-black text-xs tracking-widest uppercase border transition-colors
+                      ${genConfig.tipo === t
+                        ? 'bg-[#FF6B00] text-black border-[#FF6B00]'
+                        : 'bg-transparent text-[#888] border-[#2A2A2A] hover:border-[#444]'}`}
+                  >
+                    {t === 'ida' ? 'Solo ida' : 'Ida y vuelta'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL_CLS}>Primera fecha</label>
+                <input
+                  type="date"
+                  value={genConfig.primeraFecha}
+                  onChange={(e) => { setGenConfig((c) => ({ ...c, primeraFecha: e.target.value })); setErrGen('') }}
+                  className={INPUT_CLS + ' [color-scheme:dark]'}
+                />
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Hora (por defecto)</label>
+                <input
+                  type="time"
+                  value={genConfig.hora}
+                  onChange={(e) => setGenConfig((c) => ({ ...c, hora: e.target.value }))}
+                  className={INPUT_CLS + ' [color-scheme:dark]'}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={LABEL_CLS}>Días entre fechas</label>
+              <input
+                type="number"
+                min={1}
+                value={genConfig.diasEntreRondas}
+                onChange={(e) => setGenConfig((c) => ({ ...c, diasEntreRondas: e.target.value }))}
+                className={INPUT_CLS}
+              />
+            </div>
+
+            {errGen && <p className="text-[#FF4444] text-xs font-bold">{errGen}</p>}
+
+            <button type="submit" className={BTN_PRIMARY}>
+              GENERAR {genConfig.tipo === 'idavuelta' ? 'IDA Y VUELTA' : 'SOLO IDA'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ── Formulario nuevo partido manual ── */}
       {formOpen && (
         <div className="bg-[#131313] border border-[#2A2A2A] p-4 mb-6">
           <p className="text-white font-black text-sm uppercase tracking-wider mb-4">Nuevo partido</p>
           <form onSubmit={handleCrearPartido} className="flex flex-col gap-4">
 
-            {/* Equipos */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className={LABEL_CLS}>Equipo local</label>
@@ -153,22 +366,20 @@ export default function V9_Fixture() {
               </div>
             </div>
 
-            {/* Preview VS */}
             {localPreview && visitantePreview && (
               <div className="flex items-center justify-center gap-4 py-2 border border-[#2A2A2A] bg-[#0A0A0A]">
                 <div className="flex items-center gap-2">
-                  <EquipoLogo nombre={localPreview.nombre} color={localPreview.color} size="sm" />
+                  <EquipoLogo nombre={localPreview.nombre} color={localPreview.color} logoUrl={localPreview.logoUrl} size="sm" />
                   <span className="text-white text-sm font-bold">{localPreview.nombre}</span>
                 </div>
                 <span className="text-[#FF6B00] font-black text-xs tracking-widest">VS</span>
                 <div className="flex items-center gap-2">
                   <span className="text-white text-sm font-bold">{visitantePreview.nombre}</span>
-                  <EquipoLogo nombre={visitantePreview.nombre} color={visitantePreview.color} size="sm" />
+                  <EquipoLogo nombre={visitantePreview.nombre} color={visitantePreview.color} logoUrl={visitantePreview.logoUrl} size="sm" />
                 </div>
               </div>
             )}
 
-            {/* Fecha y hora */}
             <div>
               <label className={LABEL_CLS}>Fecha y hora</label>
               <input
@@ -179,7 +390,6 @@ export default function V9_Fixture() {
               />
             </div>
 
-            {/* Fase */}
             <div>
               <label className={LABEL_CLS}>Fase</label>
               <div className="flex gap-2">
@@ -199,7 +409,6 @@ export default function V9_Fixture() {
               </div>
             </div>
 
-            {/* Condicional: número de fecha o ronda de playoff */}
             {formP.fase === 'regular' ? (
               <div>
                 <label className={LABEL_CLS}>Número de fecha</label>
@@ -247,6 +456,9 @@ export default function V9_Fixture() {
           <div className="flex items-center gap-3 mb-4">
             <div className="w-1 h-4 bg-[#FF6B00]" />
             <p className="text-[#FF6B00] text-[10px] font-black tracking-widest uppercase">Fase Regular</p>
+            <span className="text-[#333] text-[10px] font-bold ml-auto">
+              {regularPartidos.length} partidos · {Object.keys(fechasMap).length} fechas
+            </span>
           </div>
           {Object.entries(fechasMap)
             .sort(([a], [b]) => Number(a) - Number(b))
@@ -258,7 +470,7 @@ export default function V9_Fixture() {
                 </p>
                 <div className="flex flex-col gap-1">
                   {games.map((p) => (
-                    <PartidoRow key={p.id} partido={p} onDelete={handleEliminarPartido} />
+                    <PartidoRow key={p.id} partido={p} onDelete={removePartido} />
                   ))}
                 </div>
               </div>
@@ -280,7 +492,7 @@ export default function V9_Fixture() {
               </p>
               <div className="flex flex-col gap-1">
                 {rondasMap[r!].map((p) => (
-                  <PartidoRow key={p.id} partido={p} onDelete={handleEliminarPartido} />
+                  <PartidoRow key={p.id} partido={p} onDelete={removePartido} />
                 ))}
               </div>
             </div>
@@ -294,7 +506,11 @@ export default function V9_Fixture() {
           <p className="text-[#333] text-xs font-black tracking-widest uppercase">
             Sin partidos en esta división
           </p>
-          <p className="text-[#222] text-xs mt-1">Usá el botón + PARTIDO para agregar</p>
+          <p className="text-[#222] text-xs mt-1">
+            {equiposDiv.length >= 2
+              ? 'Usá ⚡ GENERAR FIXTURE para crear el calendario automáticamente'
+              : 'Primero agregá equipos desde Gestión de Equipos'}
+          </p>
         </div>
       )}
     </div>
@@ -308,7 +524,7 @@ function PartidoRow({ partido: p, onDelete }: { partido: Partido; onDelete: (id:
   const fechaStr = fecha.toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: '2-digit' })
   const horaStr  = fecha.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
 
-  const localGano    = p.resultado?.ganadorId === p.local.equipoId
+  const localGano     = p.resultado?.ganadorId === p.local.equipoId
   const visitanteGano = p.resultado?.ganadorId === p.visitante.equipoId
 
   return (
@@ -325,7 +541,7 @@ function PartidoRow({ partido: p, onDelete }: { partido: Partido; onDelete: (id:
       {/* Equipos y marcador */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <EquipoLogo nombre={p.local.nombre} color={p.local.color} size="xs" />
+          <EquipoLogo nombre={p.local.nombre} color={p.local.color} logoUrl={p.local.logoUrl} size="xs" />
           <span className={`text-sm font-bold truncate ${localGano ? 'text-white' : 'text-[#888]'}`}>
             {p.local.nombre}
           </span>
@@ -336,7 +552,7 @@ function PartidoRow({ partido: p, onDelete }: { partido: Partido; onDelete: (id:
           )}
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <EquipoLogo nombre={p.visitante.nombre} color={p.visitante.color} size="xs" />
+          <EquipoLogo nombre={p.visitante.nombre} color={p.visitante.color} logoUrl={p.visitante.logoUrl} size="xs" />
           <span className={`text-sm font-bold truncate ${visitanteGano ? 'text-white' : 'text-[#888]'}`}>
             {p.visitante.nombre}
           </span>

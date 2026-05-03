@@ -26,6 +26,20 @@ export default function V5_Partido() {
     return <div className="min-h-screen flex items-center justify-center text-[#888]">Partido no encontrado</div>
   }
 
+  // Resolver info actual del equipo desde el store (por si fue editado después de crear el partido)
+  const eqLocal     = equipos.find((e) => e.id === partido.local.equipoId)
+  const eqVisitante = equipos.find((e) => e.id === partido.visitante.equipoId)
+  const localInfo = {
+    nombre:  eqLocal?.nombre  ?? partido.local.nombre,
+    color:   eqLocal?.color   ?? partido.local.color,
+    logoUrl: eqLocal?.logoUrl ?? partido.local.logoUrl,
+  }
+  const visitanteInfo = {
+    nombre:  eqVisitante?.nombre  ?? partido.visitante.nombre,
+    color:   eqVisitante?.color   ?? partido.visitante.color,
+    logoUrl: eqVisitante?.logoUrl ?? partido.visitante.logoUrl,
+  }
+
   const statsLocal     = statsJugadores.filter((s) => s.partidoId === partidoId && s.equipo === 'local')
     .sort((a, b) => b.puntos - a.puntos)
   const statsVisitante = statsJugadores.filter((s) => s.partidoId === partidoId && s.equipo === 'visitante')
@@ -75,8 +89,8 @@ export default function V5_Partido() {
           <div className="flex items-center justify-between gap-4">
             {/* Local */}
             <div className="flex flex-col items-center gap-2 flex-1">
-              <EquipoLogo nombre={partido.local.nombre} color={partido.local.color} size="lg" />
-              <p className="text-white font-bold text-sm text-center leading-tight">{partido.local.nombre}</p>
+              <EquipoLogo nombre={localInfo.nombre} color={localInfo.color} logoUrl={localInfo.logoUrl} size="lg" />
+              <p className="text-white font-bold text-sm text-center leading-tight">{localInfo.nombre}</p>
               <p className="text-[#555] text-[10px] font-black uppercase tracking-widest">Local</p>
             </div>
 
@@ -112,8 +126,8 @@ export default function V5_Partido() {
 
             {/* Visitante */}
             <div className="flex flex-col items-center gap-2 flex-1">
-              <EquipoLogo nombre={partido.visitante.nombre} color={partido.visitante.color} size="lg" />
-              <p className="text-white font-bold text-sm text-center leading-tight">{partido.visitante.nombre}</p>
+              <EquipoLogo nombre={visitanteInfo.nombre} color={visitanteInfo.color} logoUrl={visitanteInfo.logoUrl} size="lg" />
+              <p className="text-white font-bold text-sm text-center leading-tight">{visitanteInfo.nombre}</p>
               <p className="text-[#555] text-[10px] font-black uppercase tracking-widest">Visitante</p>
             </div>
           </div>
@@ -190,8 +204,8 @@ export default function V5_Partido() {
             <div className="flex items-center gap-0 mb-0 border-b border-[#2A2A2A]">
               <h2 className="text-white font-black text-lg uppercase tracking-wider mr-4">Box Score</h2>
               {[
-                { key: 'local' as const,     label: partido.local.nombre     },
-                { key: 'visitante' as const, label: partido.visitante.nombre },
+                { key: 'local' as const,     label: localInfo.nombre     },
+                { key: 'visitante' as const, label: visitanteInfo.nombre },
               ].map(({ key, label }) => (
                 <button
                   key={key}

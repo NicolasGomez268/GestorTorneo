@@ -137,7 +137,7 @@ function TabPosiciones({ divId, torneoId }: { divId: string; torneoId: string })
                 </td>
                 <td className="py-3 px-2">
                   <div className="flex items-center gap-2">
-                    <EquipoLogo nombre={eq.nombre} color={eq.color} size="xs" />
+                    <EquipoLogo nombre={eq.nombre} color={eq.color} logoUrl={eq.logoUrl} size="xs" />
                     <span className="text-white font-bold text-xs lg:text-sm truncate max-w-[110px] lg:max-w-none">
                       {eq.nombre}
                     </span>
@@ -253,7 +253,11 @@ function TabGoleadores({ divId }: { divId: string }) {
 ══════════════════════════════════════ */
 function TabFixture({ divId, torneoId }: { divId: string; torneoId: string }) {
   const navigate  = useNavigate()
-  const { partidos } = useAdminStore()
+  const { partidos, equipos: eqsStore } = useAdminStore()
+  const resolveEq = (ref: { equipoId: string; nombre: string; color: string; logoUrl?: string }) => {
+    const eq = eqsStore.find(e => e.id === ref.equipoId)
+    return { nombre: eq?.nombre ?? ref.nombre, color: eq?.color ?? ref.color, logoUrl: eq?.logoUrl ?? ref.logoUrl }
+  }
   const regulares = partidos
     .filter((p) => p.divisionId === divId && p.fase === 'regular')
     .sort((a, b) => a.fechaNumero - b.fechaNumero || new Date(a.fechaHora).getTime() - new Date(b.fechaHora).getTime())
@@ -280,7 +284,9 @@ function TabFixture({ divId, torneoId }: { divId: string; torneoId: string }) {
           </p>
           <div className="flex flex-col gap-2">
             {ps.map((p) => {
-              const dt = new Date(p.fechaHora)
+              const dt    = new Date(p.fechaHora)
+              const local = resolveEq(p.local)
+              const visit = resolveEq(p.visitante)
               return (
                 <button
                   key={p.id}
@@ -295,8 +301,8 @@ function TabFixture({ divId, torneoId }: { divId: string; torneoId: string }) {
                   <div className="flex items-center justify-between gap-2">
                     {/* Local */}
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <EquipoLogo nombre={p.local.nombre} color={p.local.color} size="xs" />
-                      <span className="text-white font-bold text-xs lg:text-sm truncate">{p.local.nombre}</span>
+                      <EquipoLogo nombre={local.nombre} color={local.color} logoUrl={local.logoUrl} size="xs" />
+                      <span className="text-white font-bold text-xs lg:text-sm truncate">{local.nombre}</span>
                     </div>
 
                     {/* Resultado o fecha */}
@@ -325,8 +331,8 @@ function TabFixture({ divId, torneoId }: { divId: string; torneoId: string }) {
 
                     {/* Visitante */}
                     <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                      <span className="text-white font-bold text-xs lg:text-sm truncate text-right">{p.visitante.nombre}</span>
-                      <EquipoLogo nombre={p.visitante.nombre} color={p.visitante.color} size="xs" />
+                      <span className="text-white font-bold text-xs lg:text-sm truncate text-right">{visit.nombre}</span>
+                      <EquipoLogo nombre={visit.nombre} color={visit.color} logoUrl={visit.logoUrl} size="xs" />
                     </div>
                   </div>
 
@@ -374,6 +380,13 @@ function TabProximos({ divId, torneoId }: { divId: string; torneoId: string }) {
 
 function ProximoCard({ partido: p, torneoId, divId }: { partido: Partido; torneoId: string; divId: string }) {
   const [countdown, setCountdown] = useState('')
+  const { equipos: eqs } = useAdminStore()
+  const resolveEq = (ref: { equipoId: string; nombre: string; color: string; logoUrl?: string }) => {
+    const eq = eqs.find(e => e.id === ref.equipoId)
+    return { nombre: eq?.nombre ?? ref.nombre, color: eq?.color ?? ref.color, logoUrl: eq?.logoUrl ?? ref.logoUrl }
+  }
+  const local = resolveEq(p.local)
+  const visit = resolveEq(p.visitante)
 
   useEffect(() => {
     const target = new Date(p.fechaHora).getTime()
@@ -402,8 +415,8 @@ function ProximoCard({ partido: p, torneoId, divId }: { partido: Partido; torneo
       {/* Enfrentamiento */}
       <div className="flex items-center justify-between gap-4 mb-5">
         <div className="flex flex-col items-center gap-2 flex-1">
-          <EquipoLogo nombre={p.local.nombre} color={p.local.color} size="lg" />
-          <span className="text-white font-black text-sm lg:text-base text-center leading-tight">{p.local.nombre}</span>
+          <EquipoLogo nombre={local.nombre} color={local.color} logoUrl={local.logoUrl} size="lg" />
+          <span className="text-white font-black text-sm lg:text-base text-center leading-tight">{local.nombre}</span>
           <span className="text-[#555] text-[10px] font-bold uppercase tracking-widest">Local</span>
         </div>
 
@@ -412,8 +425,8 @@ function ProximoCard({ partido: p, torneoId, divId }: { partido: Partido; torneo
         </div>
 
         <div className="flex flex-col items-center gap-2 flex-1">
-          <EquipoLogo nombre={p.visitante.nombre} color={p.visitante.color} size="lg" />
-          <span className="text-white font-black text-sm lg:text-base text-center leading-tight">{p.visitante.nombre}</span>
+          <EquipoLogo nombre={visit.nombre} color={visit.color} logoUrl={visit.logoUrl} size="lg" />
+          <span className="text-white font-black text-sm lg:text-base text-center leading-tight">{visit.nombre}</span>
           <span className="text-[#555] text-[10px] font-bold uppercase tracking-widest">Visitante</span>
         </div>
       </div>
@@ -494,6 +507,14 @@ function LlaveCard({
   navigate: ReturnType<typeof useNavigate>
   highlight?: boolean
 }) {
+  const { equipos: eqs } = useAdminStore()
+  const resolveEq = (ref: { equipoId: string; nombre: string; color: string; logoUrl?: string }) => {
+    const eq = eqs.find(e => e.id === ref.equipoId)
+    return { nombre: eq?.nombre ?? ref.nombre, color: eq?.color ?? ref.color, logoUrl: eq?.logoUrl ?? ref.logoUrl }
+  }
+  const localInfo = resolveEq(p.local)
+  const visitInfo = resolveEq(p.visitante)
+
   return (
     <button
       onClick={() => p.estado === 'jugado'
@@ -504,14 +525,14 @@ function LlaveCard({
         ${p.estado === 'jugado' ? 'hover:border-[#FF6B00]/50 cursor-pointer' : 'cursor-default'}`}
     >
       {[
-        { eq: p.local,     pts: p.resultado?.ptsLocal,      ganador: p.resultado?.ganadorId === p.local.equipoId },
-        { eq: p.visitante, pts: p.resultado?.ptsVisitante,   ganador: p.resultado?.ganadorId === p.visitante.equipoId },
-      ].map(({ eq, pts, ganador }, i) => (
+        { info: localInfo,  pts: p.resultado?.ptsLocal,     ganador: p.resultado?.ganadorId === p.local.equipoId },
+        { info: visitInfo,  pts: p.resultado?.ptsVisitante, ganador: p.resultado?.ganadorId === p.visitante.equipoId },
+      ].map(({ info, pts, ganador }, i) => (
         <div key={i} className={`flex items-center justify-between py-1.5 ${i === 0 ? 'border-b border-[#2A2A2A]' : ''}`}>
           <div className="flex items-center gap-2">
-            <EquipoLogo nombre={eq.nombre} color={eq.color} size="xs" />
+            <EquipoLogo nombre={info.nombre} color={info.color} logoUrl={info.logoUrl} size="xs" />
             <span className={`text-xs font-bold truncate max-w-[120px] ${ganador ? 'text-white' : 'text-[#666]'}`}>
-              {eq.nombre}
+              {info.nombre}
             </span>
           </div>
           {pts !== undefined && (

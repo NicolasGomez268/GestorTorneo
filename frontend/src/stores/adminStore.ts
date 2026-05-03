@@ -78,7 +78,20 @@ export const useAdminStore = create<AdminState>()(
         })),
 
       updateEquipo: (id, data) =>
-        set((s) => ({ equipos: s.equipos.map((e) => e.id === id ? { ...e, ...data } : e) })),
+        set((s) => {
+          const equipos = s.equipos.map((e) => e.id === id ? { ...e, ...data } : e)
+          const partidos = s.partidos.map((p) => {
+            const patchLocal     = p.local.equipoId     === id
+            const patchVisitante = p.visitante.equipoId === id
+            if (!patchLocal && !patchVisitante) return p
+            return {
+              ...p,
+              local:     patchLocal     ? { ...p.local,     ...(data.nombre  !== undefined && { nombre:  data.nombre  }), ...(data.logoUrl !== undefined && { logoUrl: data.logoUrl }), ...(data.color   !== undefined && { color:   data.color   }) } : p.local,
+              visitante: patchVisitante ? { ...p.visitante, ...(data.nombre  !== undefined && { nombre:  data.nombre  }), ...(data.logoUrl !== undefined && { logoUrl: data.logoUrl }), ...(data.color   !== undefined && { color:   data.color   }) } : p.visitante,
+            }
+          })
+          return { equipos, partidos }
+        }),
 
       addJugador: (j) =>
         set((s) => ({ jugadores: [...s.jugadores, j] })),
