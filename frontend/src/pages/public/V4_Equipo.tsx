@@ -17,7 +17,7 @@ export default function V4_Equipo() {
 
   const roster = jugadores
     .filter((j) => j.equipoId === equipoId)
-    .sort((a, b) => a.dorsal - b.dorsal)
+    .sort((a, b) => a.apellido.localeCompare(b.apellido))
 
   const proximosPartidos = partidos
     .filter((p) =>
@@ -117,28 +117,22 @@ export default function V4_Equipo() {
                 key={j.id}
                 className={`flex items-center gap-4 px-4 py-3 ${idx < roster.length - 1 ? 'border-b border-[#1A1A1A]' : ''}`}
               >
-                {/* Foto o dorsal */}
+                {/* Foto o inicial */}
                 {j.fotoUrl ? (
                   <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-[#2A2A2A]">
                     <img src={j.fotoUrl} alt={j.nombre} className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div
-                    className="w-10 h-10 flex items-center justify-center font-black text-white text-sm shrink-0 font-tabular"
+                    className="w-10 h-10 flex items-center justify-center font-black text-white text-sm shrink-0"
                     style={{ backgroundColor: equipo.color }}
                   >
-                    {j.dorsal}
+                    {j.apellido[0]}
                   </div>
                 )}
 
-                {/* Nombre + dorsal cuando hay foto */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm truncate">
-                    {j.apellido}, {j.nombre}
-                    {j.fotoUrl && (
-                      <span className="ml-2 text-[#555] text-[10px] font-black align-middle">#{j.dorsal}</span>
-                    )}
-                  </p>
+                  <p className="text-white font-bold text-sm truncate">{j.apellido}, {j.nombre}</p>
                   {j.posicion && (
                     <p className="text-[#555] text-[10px] font-bold tracking-wider uppercase">
                       {j.posicion}

@@ -32,13 +32,13 @@ export default function V8_Equipos() {
   const editEqLogoRef = useRef<HTMLInputElement>(null)
 
   /* ── Form crear jugador ── */
-  const [formJug,    setFormJug]    = useState({ nombre: '', apellido: '', dorsal: '', posicion: '', fotoUrl: '' })
+  const [formJug,    setFormJug]    = useState({ nombre: '', apellido: '', posicion: '', fotoUrl: '', dni: '', fechaNacimiento: '' })
   const [errJug,     setErrJug]     = useState('')
   const fotoJugRef = useRef<HTMLInputElement>(null)
 
   /* ── Edición inline jugador ── */
   const [editJugId,   setEditJugId]   = useState<string | null>(null)
-  const [formEditJug, setFormEditJug] = useState({ nombre: '', apellido: '', dorsal: '', posicion: '', fotoUrl: '' })
+  const [formEditJug, setFormEditJug] = useState({ nombre: '', apellido: '', posicion: '', fotoUrl: '', dni: '', fechaNacimiento: '' })
   const [errEditJug,  setErrEditJug]  = useState('')
   const editFotoJugRef = useRef<HTMLInputElement>(null)
 
@@ -46,7 +46,7 @@ export default function V8_Equipos() {
   const equipoActual = equiposList.find((e) => e.id === equipoSel)
   const jugadoresEq  = jugadoresList
     .filter((j) => j.equipoId === equipoSel)
-    .sort((a, b) => a.dorsal - b.dorsal)
+    .sort((a, b) => a.apellido.localeCompare(b.apellido))
 
   /* ── Cambiar torneo ── */
   const handleChangeTorneo = (id: string) => {
@@ -159,20 +159,18 @@ export default function V8_Equipos() {
     e.preventDefault()
     if (!formJug.nombre.trim())   { setErrJug('El nombre es obligatorio'); return }
     if (!formJug.apellido.trim()) { setErrJug('El apellido es obligatorio'); return }
-    const dorsal = parseInt(formJug.dorsal)
-    if (isNaN(dorsal) || dorsal < 0 || dorsal > 99) { setErrJug('Dorsal inválido (0–99)'); return }
-    if (jugadoresEq.some((j) => j.dorsal === dorsal)) { setErrJug('Ese dorsal ya está en uso'); return }
     const nuevo: Jugador = {
-      id:       `j-${Date.now()}`,
-      equipoId: equipoSel!,
-      nombre:   formJug.nombre.trim(),
-      apellido: formJug.apellido.trim(),
-      dorsal,
-      posicion: formJug.posicion || undefined,
-      fotoUrl:  formJug.fotoUrl  || undefined,
+      id:              `j-${Date.now()}`,
+      equipoId:        equipoSel!,
+      nombre:          formJug.nombre.trim(),
+      apellido:        formJug.apellido.trim(),
+      posicion:        formJug.posicion       || undefined,
+      fotoUrl:         formJug.fotoUrl        || undefined,
+      dni:             formJug.dni.trim()     || undefined,
+      fechaNacimiento: formJug.fechaNacimiento || undefined,
     }
     addJugador(nuevo)
-    setFormJug({ nombre: '', apellido: '', dorsal: '', posicion: '', fotoUrl: '' })
+    setFormJug({ nombre: '', apellido: '', posicion: '', fotoUrl: '', dni: '', fechaNacimiento: '' })
     setErrJug('')
     if (fotoJugRef.current) fotoJugRef.current.value = ''
   }
@@ -184,11 +182,12 @@ export default function V8_Equipos() {
   const handleIniciarEdit = (j: Jugador) => {
     setEditJugId(j.id)
     setFormEditJug({
-      nombre:   j.nombre,
-      apellido: j.apellido,
-      dorsal:   String(j.dorsal),
-      posicion: j.posicion ?? '',
-      fotoUrl:  j.fotoUrl  ?? '',
+      nombre:          j.nombre,
+      apellido:        j.apellido,
+      posicion:        j.posicion       ?? '',
+      fotoUrl:         j.fotoUrl        ?? '',
+      dni:             j.dni            ?? '',
+      fechaNacimiento: j.fechaNacimiento ?? '',
     })
     setErrEditJug('')
     setEditEquipo(false)
@@ -198,17 +197,13 @@ export default function V8_Equipos() {
   const handleGuardarEdit = (jugadorId: string) => {
     if (!formEditJug.nombre.trim())   { setErrEditJug('El nombre es obligatorio'); return }
     if (!formEditJug.apellido.trim()) { setErrEditJug('El apellido es obligatorio'); return }
-    const dorsal = parseInt(formEditJug.dorsal)
-    if (isNaN(dorsal) || dorsal < 0 || dorsal > 99) { setErrEditJug('Dorsal inválido (0–99)'); return }
-    if (jugadoresEq.some((j) => j.dorsal === dorsal && j.id !== jugadorId)) {
-      setErrEditJug('Ese dorsal ya está en uso'); return
-    }
     updateJugador(jugadorId, {
-      nombre:   formEditJug.nombre.trim(),
-      apellido: formEditJug.apellido.trim(),
-      dorsal,
-      posicion: formEditJug.posicion || undefined,
-      fotoUrl:  formEditJug.fotoUrl  || undefined,
+      nombre:          formEditJug.nombre.trim(),
+      apellido:        formEditJug.apellido.trim(),
+      posicion:        formEditJug.posicion       || undefined,
+      fotoUrl:         formEditJug.fotoUrl        || undefined,
+      dni:             formEditJug.dni.trim()     || undefined,
+      fechaNacimiento: formEditJug.fechaNacimiento || undefined,
     })
     setEditJugId(null)
     setErrEditJug('')
@@ -491,30 +486,39 @@ export default function V8_Equipos() {
                       </div>
                       <div className="grid grid-cols-2 gap-2 mb-2">
                         <div>
-                          <label className={LABEL_CLS}>Dorsal (0–99)</label>
+                          <label className={LABEL_CLS}>DNI (opcional)</label>
                           <input
-                            type="number"
-                            min={0} max={99}
-                            value={formEditJug.dorsal}
-                            onChange={(e) => { setFormEditJug((p) => ({ ...p, dorsal: e.target.value })); setErrEditJug('') }}
+                            type="text"
+                            value={formEditJug.dni}
+                            onChange={(e) => { setFormEditJug((p) => ({ ...p, dni: e.target.value })); setErrEditJug('') }}
+                            placeholder="Ej: 40123456"
                             className={INPUT_CLS}
                           />
                         </div>
                         <div>
-                          <label className={LABEL_CLS}>Posición</label>
-                          <select
-                            value={formEditJug.posicion}
-                            onChange={(e) => setFormEditJug((p) => ({ ...p, posicion: e.target.value }))}
-                            className={SELECT_CLS}
-                          >
-                            <option value="">Sin especificar</option>
-                            <option>Base</option>
-                            <option>Escolta</option>
-                            <option>Alero</option>
-                            <option>Ala-Pívot</option>
-                            <option>Pívot</option>
-                          </select>
+                          <label className={LABEL_CLS}>Fecha de nac. (opcional)</label>
+                          <input
+                            type="date"
+                            value={formEditJug.fechaNacimiento}
+                            onChange={(e) => setFormEditJug((p) => ({ ...p, fechaNacimiento: e.target.value }))}
+                            className={INPUT_CLS}
+                          />
                         </div>
+                      </div>
+                      <div className="mb-2">
+                        <label className={LABEL_CLS}>Posición</label>
+                        <select
+                          value={formEditJug.posicion}
+                          onChange={(e) => setFormEditJug((p) => ({ ...p, posicion: e.target.value }))}
+                          className={SELECT_CLS}
+                        >
+                          <option value="">Sin especificar</option>
+                          <option>Base</option>
+                          <option>Escolta</option>
+                          <option>Alero</option>
+                          <option>Ala-Pívot</option>
+                          <option>Pívot</option>
+                        </select>
                       </div>
                       <div className="mb-3">
                         <label className={LABEL_CLS}>Foto del jugador</label>
@@ -570,16 +574,11 @@ export default function V8_Equipos() {
                           className="w-9 h-9 flex items-center justify-center font-black text-white text-xs shrink-0"
                           style={{ backgroundColor: equipoActual.color }}
                         >
-                          {j.dorsal}
+                          {j.apellido[0]}
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-bold truncate">
-                          {j.apellido}, {j.nombre}
-                          {j.fotoUrl && (
-                            <span className="ml-2 text-[#555] text-[10px] font-bold align-middle">#{j.dorsal}</span>
-                          )}
-                        </p>
+                        <p className="text-white text-sm font-bold truncate">{j.apellido}, {j.nombre}</p>
                         {j.posicion && (
                           <p className="text-[#555] text-[10px] font-bold uppercase tracking-wider">{j.posicion}</p>
                         )}
@@ -638,31 +637,39 @@ export default function V8_Equipos() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className={LABEL_CLS}>Dorsal (0–99)</label>
+                    <label className={LABEL_CLS}>DNI (opcional)</label>
                     <input
-                      type="number"
-                      min={0} max={99}
-                      value={formJug.dorsal}
-                      onChange={(e) => { setFormJug((p) => ({ ...p, dorsal: e.target.value })); setErrJug('') }}
-                      placeholder="Ej: 10"
+                      type="text"
+                      value={formJug.dni}
+                      onChange={(e) => { setFormJug((p) => ({ ...p, dni: e.target.value })); setErrJug('') }}
+                      placeholder="Ej: 40123456"
                       className={INPUT_CLS}
                     />
                   </div>
                   <div>
-                    <label className={LABEL_CLS}>Posición</label>
-                    <select
-                      value={formJug.posicion}
-                      onChange={(e) => setFormJug((p) => ({ ...p, posicion: e.target.value }))}
-                      className={SELECT_CLS}
-                    >
-                      <option value="">Sin especificar</option>
-                      <option>Base</option>
-                      <option>Escolta</option>
-                      <option>Alero</option>
-                      <option>Ala-Pívot</option>
-                      <option>Pívot</option>
-                    </select>
+                    <label className={LABEL_CLS}>Fecha de nac. (opcional)</label>
+                    <input
+                      type="date"
+                      value={formJug.fechaNacimiento}
+                      onChange={(e) => setFormJug((p) => ({ ...p, fechaNacimiento: e.target.value }))}
+                      className={INPUT_CLS}
+                    />
                   </div>
+                </div>
+                <div>
+                  <label className={LABEL_CLS}>Posición</label>
+                  <select
+                    value={formJug.posicion}
+                    onChange={(e) => setFormJug((p) => ({ ...p, posicion: e.target.value }))}
+                    className={SELECT_CLS}
+                  >
+                    <option value="">Sin especificar</option>
+                    <option>Base</option>
+                    <option>Escolta</option>
+                    <option>Alero</option>
+                    <option>Ala-Pívot</option>
+                    <option>Pívot</option>
+                  </select>
                 </div>
 
                 {/* Foto jugador */}

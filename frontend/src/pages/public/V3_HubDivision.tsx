@@ -164,17 +164,17 @@ function TabPosiciones({ divId, torneoId }: { divId: string; torneoId: string })
    TAB 2 — GOLEADORES
 ══════════════════════════════════════ */
 function TabGoleadores({ divId }: { divId: string }) {
-  const { partidos, equipos } = useAdminStore()
+  const { partidos, equipos, jugadores } = useAdminStore()
   const divPartidos = partidos.filter((p) => p.divisionId === divId && p.estado === 'jugado')
   const partidoIds  = new Set(divPartidos.map((p) => p.id))
 
   // Sumar puntos por jugador
-  const totales: Record<string, { nombre: string; apellido: string; dorsal: number; equipoId: string; puntos: number }> = {}
+  const totales: Record<string, { nombre: string; apellido: string; numeroCamiseta: number; equipoId: string; puntos: number }> = {}
   statsJugadores
     .filter((s) => partidoIds.has(s.partidoId))
     .forEach((s) => {
       if (!totales[s.jugadorId]) {
-        totales[s.jugadorId] = { nombre: s.nombre, apellido: s.apellido, dorsal: s.dorsal, equipoId: s.equipoId, puntos: 0 }
+        totales[s.jugadorId] = { nombre: s.nombre, apellido: s.apellido, numeroCamiseta: s.numeroCamiseta, equipoId: s.equipoId, puntos: 0 }
       }
       totales[s.jugadorId].puntos += s.puntos
     })
@@ -210,7 +210,8 @@ function TabGoleadores({ divId }: { divId: string }) {
         </thead>
         <tbody>
           {ranking.map((j, idx) => {
-            const eq = equipos.find((e) => e.id === j.equipoId)
+            const eq  = equipos.find((e) => e.id === j.equipoId)
+            const jug = jugadores.find((ju) => ju.id === j.id)
             return (
               <tr key={j.id} className="border-b border-[#1A1A1A]">
                 <td className="py-3 px-1 text-center text-[#555] font-black text-xs font-tabular">
@@ -218,13 +219,18 @@ function TabGoleadores({ divId }: { divId: string }) {
                 </td>
                 <td className="py-3 px-2">
                   <div className="flex items-center gap-2">
-                    {/* Dorsal en lugar de foto */}
-                    <div
-                      className="w-7 h-7 flex items-center justify-center font-black text-white text-xs shrink-0"
-                      style={{ backgroundColor: eq?.color ?? '#333' }}
-                    >
-                      {j.dorsal}
-                    </div>
+                    {jug?.fotoUrl ? (
+                      <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[#2A2A2A]">
+                        <img src={jug.fotoUrl} alt={j.nombre} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div
+                        className="w-8 h-8 flex items-center justify-center font-black text-white text-xs shrink-0"
+                        style={{ backgroundColor: eq?.color ?? '#333' }}
+                      >
+                        {j.apellido[0]}
+                      </div>
+                    )}
                     <div>
                       <p className="text-white font-bold text-xs lg:text-sm leading-none">
                         {j.apellido.toUpperCase()}

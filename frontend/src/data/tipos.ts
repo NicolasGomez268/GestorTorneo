@@ -33,9 +33,15 @@ export interface Jugador {
   equipoId: string
   nombre: string
   apellido: string
-  dorsal: number
   posicion?: string
   fotoUrl?: string
+  dni?: string
+  fechaNacimiento?: string
+  altura?: number
+}
+
+export interface JugadorPlanilla extends Jugador {
+  numeroCamiseta: number
 }
 
 export type EstadoPartido = 'pendiente' | 'jugado'
@@ -60,12 +66,10 @@ export interface StatsJugador {
   partidoId: string
   nombre: string
   apellido: string
-  dorsal: number
+  numeroCamiseta: number
   equipo: 'local' | 'visitante'
   equipoId: string
   puntos: number
   faltas: number
-  rebotes: number
-  asistencias: number
-  minutosJugados: number
+  segundosJugados: number
 }
