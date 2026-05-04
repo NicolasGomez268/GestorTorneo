@@ -25,6 +25,8 @@ export interface Equipo {
   PJ: number
   PG: number
   PP: number
+  PF: number
+  PC: number
   PT: number
 }
 

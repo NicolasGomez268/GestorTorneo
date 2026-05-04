@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useMesaStore, type JugadorEnCancha } from '../../stores/mesaStore'
+import { useNavigate, useParams } from 'react-router-dom'
 import type { JugadorPlanilla } from '../../data/tipos'
-import { partidos } from '../../data/partidos'
-import { equipos }  from '../../data/equipos'
-import { jugadores } from '../../data/jugadores'
+import { useAdminStore } from '../../stores/adminStore'
+import { useMesaStore, type JugadorEnCancha } from '../../stores/mesaStore'
 
 // x/y como % del área de la cancha, pts = valor del tiro
 const DOTS: { x: number; y: number; pts: 2 | 3 }[] = [
@@ -33,11 +31,13 @@ export default function V10_Mesa() {
   const { partidoId } = useParams<{ partidoId: string }>()
   const navigate      = useNavigate()
   const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const { partidos, equipos, jugadores, registrarResultadoPartido } = useAdminStore()
 
   const [isLandscape, setIsLandscape] = useState(
     () => window.innerWidth >= 900 && window.innerWidth > window.innerHeight
   )
   const [fase, setFase] = useState<FaseMesa>('planilla')
+  const [showConfirmFinalizar, setShowConfirmFinalizar] = useState(false)
 
   // ── Estado pre-partido: planilla y titulares ──
   const [planillaLocal,     setPlanillaLocal]     = useState<EntradaPlanilla[]>([])
@@ -147,6 +147,53 @@ export default function V10_Mesa() {
     setModoCambio(false)
   }
 
+  const guardarResultadoEnStore = () => {
+    if (!partidoId) return
+    const mesa = useMesaStore.getState()
+    registrarResultadoPartido({
+      partidoId,
+      ptsLocal: mesa.ptsLocal,
+      ptsVisitante: mesa.ptsVisitante,
+      stats: [
+        ...mesa.jugadoresLocal.map((j) => ({
+          jugadorId: j.id,
+          partidoId,
+          nombre: j.nombre,
+          apellido: j.apellido,
+          numeroCamiseta: j.numeroCamiseta,
+          equipo: 'local' as const,
+          equipoId: mesa.localId,
+          puntos: j.puntos,
+          faltas: j.faltas,
+          segundosJugados: j.segundosJugados,
+        })),
+        ...mesa.jugadoresVisitante.map((j) => ({
+          jugadorId: j.id,
+          partidoId,
+          nombre: j.nombre,
+          apellido: j.apellido,
+          numeroCamiseta: j.numeroCamiseta,
+          equipo: 'visitante' as const,
+          equipoId: mesa.visitanteId,
+          puntos: j.puntos,
+          faltas: j.faltas,
+          segundosJugados: j.segundosJugados,
+        })),
+      ],
+    })
+  }
+
+  const handleConfirmarFinalizar = () => {
+    setShowConfirmFinalizar(false)
+    finalizarPartido()
+    guardarResultadoEnStore()
+  }
+
+  const handleVolverPanel = () => {
+    reset()
+    navigate('/admin')
+  }
+
   const enCanchaLocal     = jugadoresLocal.filter((j) => j.enCancha)
   const enCanchaVisitante = jugadoresVisitante.filter((j) => j.enCancha)
   const bancaLocal        = jugadoresLocal.filter((j) => !j.enCancha)
@@ -244,7 +291,7 @@ export default function V10_Mesa() {
         )}
         {!ganador && <p className="text-[#888] font-bold uppercase tracking-widest">Empate</p>}
         <button
-          onClick={() => { reset(); navigate('/admin') }}
+          onClick={handleVolverPanel}
           className="mt-4 bg-[#FF6B00] text-black font-black py-3 px-10 tracking-widest uppercase hover:bg-[#CC5500] transition-colors"
         >
           Volver al panel
@@ -559,7 +606,7 @@ export default function V10_Mesa() {
       {/* ── BOTTOM BAR ── */}
       <div className="flex shrink-0 border-t border-[#1A1A1A]">
         <button
-          onClick={finalizarPartido}
+          onClick={() => setShowConfirmFinalizar(true)}
           className="flex-1 bg-[#8B0000] hover:bg-[#6B0000] text-white font-black text-[11px] tracking-widest uppercase py-3 transition-colors"
         >
           🏁 Finalizar
@@ -603,6 +650,32 @@ export default function V10_Mesa() {
           onSeleccionar={handleSeleccionEntrante}
           onCerrar={() => { setModalCamisetasEquipo(null); setModoCambio(false) }}
         />
+      )}
+
+      {/* ── Confirmación de finalización ── */}
+      {showConfirmFinalizar && (
+        <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-6">
+          <div className="bg-[#0A0A0A] border border-[#2A2A2A] w-full max-w-md p-5">
+            <p className="text-[#FF6B00] text-[10px] font-black tracking-widest uppercase mb-2">Confirmar acción</p>
+            <p className="text-white font-black text-lg uppercase leading-tight mb-5">
+              ¿Seguro que querés finalizar el partido?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowConfirmFinalizar(false)}
+                className="flex-1 bg-[#1A1A1A] text-[#AAA] font-black text-xs tracking-widest uppercase py-3 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmarFinalizar}
+                className="flex-1 bg-[#8B0000] text-white font-black text-xs tracking-widest uppercase py-3 hover:bg-[#6B0000] transition-colors"
+              >
+                Sí, finalizar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

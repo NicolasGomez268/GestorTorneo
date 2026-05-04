@@ -1,15 +1,15 @@
-import { useParams, useNavigate } from 'react-router-dom'
-import { useRef, useState } from 'react'
 import html2canvas from 'html2canvas'
-import { useAdminStore }  from '../../stores/adminStore'
-import { statsJugadores } from '../../data/statsJugadores'
-import Container          from '../../components/Container'
-import EquipoLogo         from '../../components/EquipoLogo'
+import { useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import Container from '../../components/Container'
+import EquipoLogo from '../../components/EquipoLogo'
+import type { StatsJugador } from '../../data/tipos'
+import { useAdminStore } from '../../stores/adminStore'
 
 export default function V5_Partido() {
   const { torneoId, divId, partidoId } = useParams()
   const navigate = useNavigate()
-  const { partidos, equipos, divisiones, jugadores } = useAdminStore()
+  const { partidos, equipos, divisiones, jugadores, statsJugadores } = useAdminStore()
 
   const [boxTab, setBoxTab]         = useState<'local' | 'visitante'>('local')
   const [modalGol, setModalGol]     = useState(false)
@@ -377,7 +377,7 @@ export default function V5_Partido() {
 
 /* ── Sub-componentes ── */
 
-function BoxScoreTable({ stats, fmtSeg }: { stats: typeof statsJugadores; fmtSeg: (s: number) => string }) {
+function BoxScoreTable({ stats, fmtSeg }: { stats: StatsJugador[]; fmtSeg: (s: number) => string }) {
   if (stats.length === 0) {
     return <p className="py-8 text-center text-[#444] text-sm font-bold tracking-widest uppercase">Sin datos</p>
   }

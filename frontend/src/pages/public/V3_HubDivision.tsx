@@ -1,10 +1,9 @@
-import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { useAdminStore }  from '../../stores/adminStore'
-import { statsJugadores } from '../../data/statsJugadores'
-import type { Partido }   from '../../data/tipos'
-import Container          from '../../components/Container'
-import EquipoLogo         from '../../components/EquipoLogo'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import Container from '../../components/Container'
+import EquipoLogo from '../../components/EquipoLogo'
+import type { Partido } from '../../data/tipos'
+import { useAdminStore } from '../../stores/adminStore'
 
 type Tab = 'posiciones' | 'goleadores' | 'fixture' | 'proximos' | 'playoff'
 
@@ -100,17 +99,40 @@ export default function V3_HubDivision() {
 ══════════════════════════════════════ */
 function TabPosiciones({ divId, torneoId }: { divId: string; torneoId: string }) {
   const navigate = useNavigate()
-  const { equipos } = useAdminStore()
-  const eqs = [...equipos.filter((e) => e.divisionId === divId)]
-    .sort((a, b) => b.PT - a.PT || b.PG - a.PG)
+  const { equipos, partidos } = useAdminStore()
+  const divPartidos = partidos.filter((p) => p.divisionId === divId && p.estado === 'jugado' && p.resultado)
+
+  const eqs = [...equipos.filter((e) => e.divisionId === divId)].sort((a, b) => {
+    const ptDiff = b.PT - a.PT
+    if (ptDiff !== 0) return ptDiff
+
+    // Desempate 1: enfrentamiento directo
+    const h2h = divPartidos.find(
+      (p) =>
+        (p.local.equipoId === a.id && p.visitante.equipoId === b.id) ||
+        (p.local.equipoId === b.id && p.visitante.equipoId === a.id)
+    )
+    if (h2h?.resultado) {
+      if (h2h.resultado.ganadorId === a.id) return -1
+      if (h2h.resultado.ganadorId === b.id) return 1
+    }
+
+    // Desempate 2: diferencia de puntos
+    const difA = (a.PF ?? 0) - (a.PC ?? 0)
+    const difB = (b.PF ?? 0) - (b.PC ?? 0)
+    if (difB !== difA) return difB - difA
+
+    // Desempate 3: puntos a favor
+    return (b.PF ?? 0) - (a.PF ?? 0)
+  })
 
   return (
     <div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[320px]">
+        <table className="w-full min-w-[420px]">
           <thead>
             <tr className="border-b-2 border-[#2A2A2A]">
-              {['#', 'EQUIPO', 'PJ', 'PG', 'PP', 'PT'].map((h) => (
+              {['#', 'EQUIPO', 'PJ', 'PG', 'PP', 'PF', 'PC', 'PT'].map((h) => (
                 <th
                   key={h}
                   className={`py-3 text-[10px] font-black tracking-widest text-[#555]
@@ -128,7 +150,6 @@ function TabPosiciones({ divId, torneoId }: { divId: string; torneoId: string })
                 onClick={() => navigate(`/torneo/${torneoId}/division/${divId}/equipo/${eq.id}`)}
                 className="border-b border-[#1A1A1A] hover:bg-[#1A1A1A] cursor-pointer transition-colors group"
               >
-                {/* Indicador naranja en hover */}
                 <td className="py-3 px-1 text-center relative">
                   <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#FF6B00] opacity-0 group-hover:opacity-100 transition-opacity" />
                   <span className="text-[#555] font-black text-xs font-tabular">
@@ -146,6 +167,8 @@ function TabPosiciones({ divId, torneoId }: { divId: string; torneoId: string })
                 <td className="py-3 px-1 text-center text-[#888] text-xs font-tabular">{eq.PJ}</td>
                 <td className="py-3 px-1 text-center text-[#888] text-xs font-tabular">{eq.PG}</td>
                 <td className="py-3 px-1 text-center text-[#888] text-xs font-tabular">{eq.PP}</td>
+                <td className="py-3 px-1 text-center text-[#888] text-xs font-tabular">{eq.PF ?? 0}</td>
+                <td className="py-3 px-1 text-center text-[#888] text-xs font-tabular">{eq.PC ?? 0}</td>
                 <td className="py-3 px-1 text-center text-[#FF6B00] font-black text-sm font-tabular">{eq.PT}</td>
               </tr>
             ))}
@@ -154,7 +177,7 @@ function TabPosiciones({ divId, torneoId }: { divId: string; torneoId: string })
       </div>
 
       <p className="text-[#333] text-[10px] font-bold tracking-widest uppercase text-right mt-3">
-        PJ: Jugados · PG: Ganados · PP: Perdidos · PT: Puntos
+        PJ: Jugados · PG: Ganados · PP: Perdidos · PF: A Favor · PC: En Contra · PT: Puntos
       </p>
     </div>
   )
@@ -164,23 +187,38 @@ function TabPosiciones({ divId, torneoId }: { divId: string; torneoId: string })
    TAB 2 — GOLEADORES
 ══════════════════════════════════════ */
 function TabGoleadores({ divId }: { divId: string }) {
-  const { partidos, equipos, jugadores } = useAdminStore()
+  const { partidos, equipos, jugadores, statsJugadores } = useAdminStore()
   const divPartidos = partidos.filter((p) => p.divisionId === divId && p.estado === 'jugado')
   const partidoIds  = new Set(divPartidos.map((p) => p.id))
+  const jugadoresMap = new Map(jugadores.map((j) => [j.id, j]))
+  const equiposMap = new Map(equipos.map((e) => [e.id, e]))
 
   // Sumar puntos por jugador
-  const totales: Record<string, { nombre: string; apellido: string; numeroCamiseta: number; equipoId: string; puntos: number }> = {}
+  const totales: Record<string, { id: string; nombre: string; apellido: string; numeroCamiseta: number; equipoId: string; puntos: number }> = {}
   statsJugadores
     .filter((s) => partidoIds.has(s.partidoId))
     .forEach((s) => {
+      const jug = jugadoresMap.get(s.jugadorId)
+      const nombre = jug?.nombre ?? s.nombre
+      const apellido = jug?.apellido ?? s.apellido
+      const equipoId = jug?.equipoId ?? s.equipoId
       if (!totales[s.jugadorId]) {
-        totales[s.jugadorId] = { nombre: s.nombre, apellido: s.apellido, numeroCamiseta: s.numeroCamiseta, equipoId: s.equipoId, puntos: 0 }
+        totales[s.jugadorId] = {
+          id: s.jugadorId,
+          nombre,
+          apellido,
+          numeroCamiseta: s.numeroCamiseta,
+          equipoId,
+          puntos: 0,
+        }
       }
+      totales[s.jugadorId].nombre = nombre
+      totales[s.jugadorId].apellido = apellido
+      totales[s.jugadorId].equipoId = equipoId
       totales[s.jugadorId].puntos += s.puntos
     })
 
-  const ranking = Object.entries(totales)
-    .map(([id, d]) => ({ id, ...d }))
+  const ranking = Object.values(totales)
     .sort((a, b) => b.puntos - a.puntos)
     .slice(0, 10)
 
@@ -210,8 +248,8 @@ function TabGoleadores({ divId }: { divId: string }) {
         </thead>
         <tbody>
           {ranking.map((j, idx) => {
-            const eq  = equipos.find((e) => e.id === j.equipoId)
-            const jug = jugadores.find((ju) => ju.id === j.id)
+            const eq = equiposMap.get(j.equipoId)
+            const jug = jugadoresMap.get(j.id)
             return (
               <tr key={j.id} className="border-b border-[#1A1A1A]">
                 <td className="py-3 px-1 text-center text-[#555] font-black text-xs font-tabular">

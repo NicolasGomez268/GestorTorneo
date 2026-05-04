@@ -131,6 +131,12 @@ export default function V6_Dashboard() {
                   {pendientes.map((p, idx) => {
                     const div = divisiones.find((d) => d.id === p.divisionId)
                     const fecha = new Date(p.fechaHora)
+                    const visitanteEq = equipos.find((e) => e.id === p.visitante.equipoId)
+                    const localEq = equipos.find((e) => e.id === p.local.equipoId)
+                    const visitanteNombre = visitanteEq?.nombre ?? p.visitante.nombre
+                    const localNombre = localEq?.nombre ?? p.local.nombre
+                    const visitanteColor = visitanteEq?.color ?? p.visitante.color
+                    const localColor = localEq?.color ?? p.local.color
                     return (
                       <button
                         key={p.id}
@@ -141,9 +147,9 @@ export default function V6_Dashboard() {
                         {/* Equipos */}
                         <div className="flex-1 min-w-0">
                           <p className="text-white font-black text-sm uppercase truncate">
-                            {p.visitante.nombre}
+                            {visitanteNombre}
                             <span className="text-[#444] font-bold mx-2">vs</span>
-                            {p.local.nombre}
+                            {localNombre}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
                             {div && (
@@ -163,8 +169,8 @@ export default function V6_Dashboard() {
                         </div>
                         {/* Colores de equipo */}
                         <div className="flex gap-1 shrink-0">
-                          <div className="w-2 h-8" style={{ backgroundColor: p.visitante.color }} />
-                          <div className="w-2 h-8" style={{ backgroundColor: p.local.color }} />
+                          <div className="w-2 h-8" style={{ backgroundColor: visitanteColor }} />
+                          <div className="w-2 h-8" style={{ backgroundColor: localColor }} />
                         </div>
                         <span className="text-[#FF6B00] font-black text-sm shrink-0">→</span>
                       </button>

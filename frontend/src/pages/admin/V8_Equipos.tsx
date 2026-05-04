@@ -117,7 +117,7 @@ export default function V8_Equipos() {
       nombre:     formEq.nombre.trim(),
       color:      '#1A1A1A',
       logoUrl:    formEq.logoUrl,
-      PJ: 0, PG: 0, PP: 0, PT: 0,
+      PJ: 0, PG: 0, PP: 0, PF: 0, PC: 0, PT: 0,
     }
     addEquipo(nuevo)
     setFormEq({ nombre: '', logoUrl: '' })
