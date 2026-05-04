@@ -1,12 +1,12 @@
 import { create } from 'zustand'
-import type { Jugador } from '../data/tipos'
+import type { JugadorPlanilla } from '../data/tipos'
 
-export interface JugadorEnCancha extends Jugador {
+export interface JugadorEnCancha extends JugadorPlanilla {
   puntos: number
   faltas: number
-  minutosJugados: number
+  segundosJugados: number
   enCancha: boolean
-  tiempoEntrada: number | null
+  tiempoEntrada: number | null  // segundos de juego absolutos al momento de entrada
 }
 
 interface MesaState {
@@ -34,7 +34,8 @@ interface MesaState {
     localId: string; visitanteId: string
     localNombre: string; visitanteNombre: string
     localColor: string; visitanteColor: string
-    jugadoresLocal: Jugador[]; jugadoresVisitante: Jugador[]
+    jugadoresLocal: JugadorPlanilla[]; jugadoresVisitante: JugadorPlanilla[]
+    titularesLocalIds: string[]; titularesVisitanteIds: string[]
   }) => void
   toggleReloj: () => void
   tickReloj: () => void
@@ -46,6 +47,9 @@ interface MesaState {
   finalizarPartido: () => void
   reset: () => void
 }
+
+const gameSecondsElapsed = (cuarto: number, tiempoRestante: number) =>
+  (cuarto - 1) * DURACION_CUARTO + (DURACION_CUARTO - tiempoRestante)
 
 const DURACION_CUARTO = 10 * 60
 
@@ -64,10 +68,10 @@ export const useMesaStore = create<MesaState>((set, get) => ({
   finalizado: false,
 
   iniciarPartido: (config) => {
-    const toJugadorEnCancha = (j: Jugador, idx: number): JugadorEnCancha => ({
-      ...j, puntos: 0, faltas: 0, minutosJugados: 0,
-      enCancha: idx < 5,
-      tiempoEntrada: idx < 5 ? 0 : null,
+    const toJugadorEnCancha = (j: JugadorPlanilla, titularIds: string[]): JugadorEnCancha => ({
+      ...j, puntos: 0, faltas: 0, segundosJugados: 0,
+      enCancha: titularIds.includes(j.id),
+      tiempoEntrada: titularIds.includes(j.id) ? 0 : null,
     })
     set({
       ...config,
@@ -75,8 +79,8 @@ export const useMesaStore = create<MesaState>((set, get) => ({
       faltasLocal: 0, faltasVisitante: 0,
       cuarto: 1, tiempoRestante: DURACION_CUARTO,
       corriendo: false, finalizado: false,
-      jugadoresLocal: config.jugadoresLocal.map(toJugadorEnCancha),
-      jugadoresVisitante: config.jugadoresVisitante.map(toJugadorEnCancha),
+      jugadoresLocal: config.jugadoresLocal.map((j) => toJugadorEnCancha(j, config.titularesLocalIds)),
+      jugadoresVisitante: config.jugadoresVisitante.map((j) => toJugadorEnCancha(j, config.titularesVisitanteIds)),
       jugadorSeleccionado: null,
     })
   },
@@ -127,17 +131,36 @@ export const useMesaStore = create<MesaState>((set, get) => ({
   },
 
   cambiarJugador: (salienteId, entranteId, equipo) => {
+    const { cuarto, tiempoRestante } = get()
+    const ahora = gameSecondsElapsed(cuarto, tiempoRestante)
     const actualizar = (lista: JugadorEnCancha[]) =>
       lista.map((j) => {
-        if (j.id === salienteId) return { ...j, enCancha: false, tiempoEntrada: null }
-        if (j.id === entranteId) return { ...j, enCancha: true, tiempoEntrada: Date.now() }
+        if (j.id === salienteId) return {
+          ...j, enCancha: false,
+          segundosJugados: j.segundosJugados + (j.tiempoEntrada != null ? ahora - j.tiempoEntrada : 0),
+          tiempoEntrada: null,
+        }
+        if (j.id === entranteId) return { ...j, enCancha: true, tiempoEntrada: ahora }
         return j
       })
     if (equipo === 'local') set((s) => ({ jugadoresLocal: actualizar(s.jugadoresLocal), jugadorSeleccionado: null }))
     else set((s) => ({ jugadoresVisitante: actualizar(s.jugadoresVisitante), jugadorSeleccionado: null }))
   },
 
-  finalizarPartido: () => set({ finalizado: true, corriendo: false }),
+  finalizarPartido: () => {
+    const { cuarto, tiempoRestante, jugadoresLocal, jugadoresVisitante } = get()
+    const ahora = gameSecondsElapsed(cuarto, tiempoRestante)
+    const cerrarTiempo = (lista: JugadorEnCancha[]) =>
+      lista.map((j) => j.enCancha && j.tiempoEntrada != null
+        ? { ...j, segundosJugados: j.segundosJugados + (ahora - j.tiempoEntrada), tiempoEntrada: null }
+        : j
+      )
+    set({
+      finalizado: true, corriendo: false,
+      jugadoresLocal:     cerrarTiempo(jugadoresLocal),
+      jugadoresVisitante: cerrarTiempo(jugadoresVisitante),
+    })
+  },
 
   reset: () => set({
     partidoId: null, ptsLocal: 0, ptsVisitante: 0,

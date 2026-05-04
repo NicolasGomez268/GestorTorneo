@@ -1,17 +1,16 @@
-import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
 import html2canvas from 'html2canvas'
-import { useAdminStore } from '../../stores/adminStore'
-import { statsJugadores } from '../../data/statsJugadores'
-import type { Division } from '../../data/tipos'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import Container from '../../components/Container'
 import EquipoLogo from '../../components/EquipoLogo'
+import type { Division, StatsJugador } from '../../data/tipos'
 import { obtenerDivisionPublica } from '../../lib/torneos-publico'
+import { useAdminStore } from '../../stores/adminStore'
 
 export default function V5_Partido() {
   const { torneoId, divId, partidoId } = useParams()
   const navigate = useNavigate()
-  const { partidos, equipos } = useAdminStore()
+  const { partidos, equipos, jugadores, statsJugadores } = useAdminStore()
 
   const [boxTab, setBoxTab] = useState<'local' | 'visitante'>('local')
   const [modalGol, setModalGol] = useState(false)
@@ -61,6 +60,20 @@ export default function V5_Partido() {
     )
   }
 
+  // Resolver info actual del equipo desde el store (por si fue editado después de crear el partido)
+  const eqLocal     = equipos.find((e) => e.id === partido.local.equipoId)
+  const eqVisitante = equipos.find((e) => e.id === partido.visitante.equipoId)
+  const localInfo = {
+    nombre:  eqLocal?.nombre  ?? partido.local.nombre,
+    color:   eqLocal?.color   ?? partido.local.color,
+    logoUrl: eqLocal?.logoUrl ?? partido.local.logoUrl,
+  }
+  const visitanteInfo = {
+    nombre:  eqVisitante?.nombre  ?? partido.visitante.nombre,
+    color:   eqVisitante?.color   ?? partido.visitante.color,
+    logoUrl: eqVisitante?.logoUrl ?? partido.visitante.logoUrl,
+  }
+
   const statsLocal     = statsJugadores.filter((s) => s.partidoId === partidoId && s.equipo === 'local')
     .sort((a, b) => b.puntos - a.puntos)
   const statsVisitante = statsJugadores.filter((s) => s.partidoId === partidoId && s.equipo === 'visitante')
@@ -71,7 +84,8 @@ export default function V5_Partido() {
     (top, s) => (!top || s.puntos > top.puntos ? s : top), null
   )
 
-  const eqGoleador = goleador ? equipos.find((e) => e.id === goleador.equipoId) : null
+  const eqGoleador  = goleador ? equipos.find((e) => e.id === goleador.equipoId) : null
+  const jugGoleador = goleador ? jugadores.find((j) => j.id === goleador.jugadorId) : null
 
   const esFinal       = partido.ronda === 'final' && partido.estado === 'jugado'
   const equipoCampeon = esFinal && partido.resultado
@@ -92,7 +106,11 @@ export default function V5_Partido() {
     }
   }
 
-  const fmtMin = (m: number) => `${String(Math.floor(m)).padStart(2, '0')}:00`
+  const fmtSeg = (s: number) => {
+    const m = Math.floor(s / 60)
+    const ss = Math.floor(s % 60)
+    return `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
@@ -110,8 +128,8 @@ export default function V5_Partido() {
           <div className="flex items-center justify-between gap-4">
             {/* Local */}
             <div className="flex flex-col items-center gap-2 flex-1">
-              <EquipoLogo nombre={partido.local.nombre} color={partido.local.color} size="lg" />
-              <p className="text-white font-bold text-sm text-center leading-tight">{partido.local.nombre}</p>
+              <EquipoLogo nombre={localInfo.nombre} color={localInfo.color} logoUrl={localInfo.logoUrl} size="lg" />
+              <p className="text-white font-bold text-sm text-center leading-tight">{localInfo.nombre}</p>
               <p className="text-[#555] text-[10px] font-black uppercase tracking-widest">Local</p>
             </div>
 
@@ -147,8 +165,8 @@ export default function V5_Partido() {
 
             {/* Visitante */}
             <div className="flex flex-col items-center gap-2 flex-1">
-              <EquipoLogo nombre={partido.visitante.nombre} color={partido.visitante.color} size="lg" />
-              <p className="text-white font-bold text-sm text-center leading-tight">{partido.visitante.nombre}</p>
+              <EquipoLogo nombre={visitanteInfo.nombre} color={visitanteInfo.color} logoUrl={visitanteInfo.logoUrl} size="lg" />
+              <p className="text-white font-bold text-sm text-center leading-tight">{visitanteInfo.nombre}</p>
               <p className="text-[#555] text-[10px] font-black uppercase tracking-widest">Visitante</p>
             </div>
           </div>
@@ -161,12 +179,18 @@ export default function V5_Partido() {
               Goleador del partido
             </p>
             <div className="flex items-center gap-4">
-              <div
-                className="w-14 h-14 flex items-center justify-center font-black text-white text-xl shrink-0 font-tabular"
-                style={{ backgroundColor: eqGoleador.color }}
-              >
-                {goleador.dorsal}
-              </div>
+              {jugGoleador?.fotoUrl ? (
+                <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 border border-[#2A2A2A]">
+                  <img src={jugGoleador.fotoUrl} alt={goleador.nombre} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div
+                  className="w-14 h-14 flex items-center justify-center font-black text-white text-xl shrink-0 font-tabular"
+                  style={{ backgroundColor: eqGoleador.color }}
+                >
+                  {goleador.numeroCamiseta}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-white font-black text-xl leading-none truncate">
                   {goleador.apellido.toUpperCase()}
@@ -178,20 +202,12 @@ export default function V5_Partido() {
                 <p className="text-[#555] text-[10px] font-black uppercase tracking-wider">puntos</p>
               </div>
             </div>
-            {(goleador.rebotes > 0 || goleador.asistencias > 0) && (
+            {goleador.segundosJugados > 0 && (
               <div className="flex gap-6 mt-3 pt-3 border-t border-[#1A1A1A]">
-                {goleador.rebotes > 0 && (
-                  <div>
-                    <p className="text-[#555] text-[9px] font-black uppercase tracking-widest">Rebotes</p>
-                    <p className="text-white font-black text-lg font-tabular">{goleador.rebotes}</p>
-                  </div>
-                )}
-                {goleador.asistencias > 0 && (
-                  <div>
-                    <p className="text-[#555] text-[9px] font-black uppercase tracking-widest">Asistencias</p>
-                    <p className="text-white font-black text-lg font-tabular">{goleador.asistencias}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-[#555] text-[9px] font-black uppercase tracking-widest">Minutos jugados</p>
+                  <p className="text-white font-black text-lg font-tabular">{fmtSeg(goleador.segundosJugados)}</p>
+                </div>
               </div>
             )}
           </div>
@@ -225,8 +241,8 @@ export default function V5_Partido() {
             <div className="flex items-center gap-0 mb-0 border-b border-[#2A2A2A]">
               <h2 className="text-white font-black text-lg uppercase tracking-wider mr-4">Box Score</h2>
               {[
-                { key: 'local' as const,     label: partido.local.nombre     },
-                { key: 'visitante' as const, label: partido.visitante.nombre },
+                { key: 'local' as const,     label: localInfo.nombre     },
+                { key: 'visitante' as const, label: visitanteInfo.nombre },
               ].map(({ key, label }) => (
                 <button
                   key={key}
@@ -239,7 +255,7 @@ export default function V5_Partido() {
               ))}
             </div>
 
-            <BoxScoreTable stats={boxTab === 'local' ? statsLocal : statsVisitante} fmtMin={fmtMin} />
+            <BoxScoreTable stats={boxTab === 'local' ? statsLocal : statsVisitante} fmtSeg={fmtSeg} />
           </div>
         )}
       </Container>
@@ -266,7 +282,7 @@ export default function V5_Partido() {
               className="font-black text-white leading-none font-tabular"
               style={{ fontSize: 'clamp(120px, 40vw, 200px)', opacity: 0.15, position: 'absolute', userSelect: 'none' }}
             >
-              {goleador.dorsal}
+              {goleador.numeroCamiseta}
             </div>
 
             <div className="relative z-10 flex flex-col items-center gap-4 text-center">
@@ -274,13 +290,19 @@ export default function V5_Partido() {
                 Goleador del partido
               </p>
 
-              {/* Dorsal visible */}
-              <div
-                className="w-24 h-24 flex items-center justify-center font-black text-white text-4xl font-tabular"
-                style={{ backgroundColor: eqGoleador.color }}
-              >
-                {goleador.dorsal}
-              </div>
+              {/* Foto o número de camiseta */}
+              {jugGoleador?.fotoUrl ? (
+                <div className="w-28 h-28 rounded-full overflow-hidden border-4 shrink-0" style={{ borderColor: eqGoleador.color }}>
+                  <img src={jugGoleador.fotoUrl} alt={goleador.nombre} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div
+                  className="w-24 h-24 flex items-center justify-center font-black text-white text-4xl font-tabular"
+                  style={{ backgroundColor: eqGoleador.color }}
+                >
+                  {goleador.numeroCamiseta}
+                </div>
+              )}
 
               <div>
                 <p className="text-white font-black text-4xl italic uppercase leading-none">
@@ -389,7 +411,7 @@ export default function V5_Partido() {
 
 /* ── Sub-componentes ── */
 
-function BoxScoreTable({ stats, fmtMin }: { stats: typeof statsJugadores; fmtMin: (m: number) => string }) {
+function BoxScoreTable({ stats, fmtSeg }: { stats: StatsJugador[]; fmtSeg: (s: number) => string }) {
   if (stats.length === 0) {
     return <p className="py-8 text-center text-[#444] text-sm font-bold tracking-widest uppercase">Sin datos</p>
   }
@@ -399,9 +421,8 @@ function BoxScoreTable({ stats, fmtMin }: { stats: typeof statsJugadores; fmtMin
         <thead>
           <tr className="border-b border-[#2A2A2A]">
             <th className="py-3 px-2 text-left text-[10px] font-black tracking-widest text-[#555]">JUGADOR</th>
-            <th className="py-3 px-1 text-center text-[10px] font-black tracking-widest text-[#555] w-12">MIN</th>
+            <th className="py-3 px-1 text-center text-[10px] font-black tracking-widest text-[#555] w-14">MIN</th>
             <th className="py-3 px-1 text-center text-[10px] font-black tracking-widest text-[#555] w-10">FAL</th>
-            <th className="py-3 px-1 text-center text-[10px] font-black tracking-widest text-[#555] w-10">REB</th>
             <th className="py-3 px-1 text-center text-[10px] font-black tracking-widest text-[#555] w-10">PTS</th>
           </tr>
         </thead>
@@ -413,9 +434,8 @@ function BoxScoreTable({ stats, fmtMin }: { stats: typeof statsJugadores; fmtMin
                   {s.apellido}, {s.nombre}
                 </p>
               </td>
-              <td className="py-2 px-1 text-center text-[#888] text-xs font-tabular">{fmtMin(s.minutosJugados)}</td>
+              <td className="py-2 px-1 text-center text-[#888] text-xs font-tabular">{fmtSeg(s.segundosJugados)}</td>
               <td className="py-2 px-1 text-center text-[#888] text-xs font-tabular">{s.faltas}</td>
-              <td className="py-2 px-1 text-center text-[#888] text-xs font-tabular">{s.rebotes}</td>
               <td className="py-2 px-1 text-center text-[#FF6B00] font-black text-sm font-tabular">{s.puntos}</td>
             </tr>
           ))}
