@@ -46,6 +46,24 @@
   //     ]
   //   },
   // ]
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "torneos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "idOrganizacion", "order": "ASCENDING" },
+        { "fieldPath": "temporada", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "torneos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "idOrganizacion", "order": "ASCENDING" },
+        { "fieldPath": "claveCompetencia", "order": "ASCENDING" },
+        { "fieldPath": "temporada", "order": "DESCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

@@ -1,5 +1,4 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { useAuthStore } from '../stores/authStore'
 
 import PublicLayout   from '../components/PublicLayout'
 import LoginPage      from '../pages/LoginPage'
@@ -9,23 +8,14 @@ import V3_HubDivision from '../pages/public/V3_HubDivision'
 import V4_Equipo      from '../pages/public/V4_Equipo'
 import V5_Partido     from '../pages/public/V5_Partido'
 
-import AdminLayout    from '../components/AdminLayout'
-import V6_Dashboard   from '../pages/admin/V6_Dashboard'
-import V7_Torneo      from '../pages/admin/V7_Torneo'
-import V8_Equipos     from '../pages/admin/V8_Equipos'
-import V9_Fixture     from '../pages/admin/V9_Fixture'
-import V10_Mesa       from '../pages/admin/V10_Mesa'
-
-function RequireAuth({ children }: { children: React.ReactNode }) {
-  const isAdmin = useAuthStore((s) => s.isAdmin)
-  const ready = useAuthStore((s) => s.ready)
-
-  if (!ready) {
-    return <div className="p-4 text-xs text-[#888]">Cargando...</div>
-  }
-
-  return isAdmin ? <>{children}</> : <Navigate to="/login" replace />
-}
+import AdminLayout from '../components/AdminLayout'
+import V6_Dashboard from '../pages/admin/V6_Dashboard'
+import V7_Torneo from '../pages/admin/V7_Torneo'
+import V8_Equipos from '../pages/admin/V8_Equipos'
+import V9_Fixture from '../pages/admin/V9_Fixture'
+import V10_Mesa from '../pages/admin/V10_Mesa'
+import V11_Organizaciones from '../pages/admin/V11_Organizaciones'
+import { RequireAuth } from './RequireAuth'
 
 export const router = createBrowserRouter([
   {
@@ -46,6 +36,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true,              element: <V6_Dashboard /> },
       { path: 'torneo',           element: <V7_Torneo /> },
+      { path: 'organizaciones',   element: <V11_Organizaciones /> },
       { path: 'equipos',          element: <V8_Equipos /> },
       { path: 'fixture',          element: <V9_Fixture /> },
       { path: 'mesa/:partidoId',  element: <V10_Mesa /> },

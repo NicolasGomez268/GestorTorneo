@@ -1,30 +1,87 @@
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  type User,
+} from 'firebase/auth'
 import { create } from 'zustand'
 
-const MOCK_USER = 'admin'
-const MOCK_PASS = 'admin123'
+import { auth } from '../lib/firebase'
+
+export type RolMvp = 'superadmin' | 'organizador'
 
 interface AuthState {
-  isAdmin: boolean
+  user: User | null
   ready: boolean
-  userEmail: string | null
+  rol: RolMvp | null
+  idOrganizacion: string | null
+  error: string | null
   init: () => void
-  login: (user: string, pass: string) => Promise<boolean>
+  login: (email: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
+  refreshClaims: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
-  isAdmin: false,
-  ready: true,
-  userEmail: null,
-  init: () => {},
-  login: async (user, pass) => {
-    if (user === MOCK_USER && pass === MOCK_PASS) {
-      set({ isAdmin: true, userEmail: MOCK_USER })
-      return true
-    }
-    return false
+let unsub: (() => void) | null = null
+
+const claimsFromUser = async (user: User | null) => {
+  if (!user) {
+    return { rol: null as RolMvp | null, idOrganizacion: null as string | null }
+  }
+  const token = await user.getIdTokenResult(true)
+  const rol = token.claims.rol as RolMvp | undefined
+  const idOrganizacion = token.claims.idOrganizacion as string | undefined
+  return {
+    rol: rol === 'superadmin' || rol === 'organizador' ? rol : null,
+    idOrganizacion: idOrganizacion ?? null,
+  }
+}
+
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  user: null,
+  ready: false,
+  rol: null,
+  idOrganizacion: null,
+  error: null,
+
+  init: () => {
+    if (unsub) return
+    unsub = onAuthStateChanged(auth, async (user) => {
+      const c = await claimsFromUser(user)
+      set({
+        user,
+        ...c,
+        ready: true,
+        error: null,
+      })
+    })
   },
+
+  refreshClaims: async () => {
+    const { user } = get()
+    if (!user) return
+    const c = await claimsFromUser(user)
+    set(c)
+  },
+
+  login: async (email, password) => {
+    set({ error: null })
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password)
+      await get().refreshClaims()
+      return true
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Error al iniciar sesión'
+      set({ error: msg })
+      return false
+    }
+  },
+
   logout: async () => {
-    set({ isAdmin: false, userEmail: null })
+    await signOut(auth)
+    set({ user: null, rol: null, idOrganizacion: null })
   },
 }))
+
+export const puedeAccederAdmin = (rol: RolMvp | null): boolean =>
+  rol === 'superadmin' || rol === 'organizador'

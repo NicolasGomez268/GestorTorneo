@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminStore } from '../../stores/adminStore'
 import type { Equipo, Jugador } from '../../data/tipos'
@@ -14,11 +14,27 @@ export default function V8_Equipos() {
   } = useAdminStore()
 
   const navigate = useNavigate()
-  const [torneoId,  setTorneoId]  = useState(torneos[0]?.id ?? '')
-  const [divId,     setDivId]     = useState(() => divisiones.find(d => d.torneoId === torneos[0]?.id)?.id ?? '')
-  const [equipoSel, setEquipoSel] = useState<string | null>(null)
+  const [torneoId, setTorneoId] = useState('')
+  const [divId, setDivId] = useState('')
+  const mockIdSeq = useRef(0)
+  const nextMockId = (prefijo: string) => `${prefijo}-${++mockIdSeq.current}`
 
-  const divsDeTorneo = divisiones.filter((d) => d.torneoId === torneoId)
+  const resolvedTorneoId = useMemo(() => {
+    if (torneoId && torneos.some((t) => t.id === torneoId)) return torneoId
+    return torneos[0]?.id ?? ''
+  }, [torneoId, torneos])
+
+  const divsDeTorneo = useMemo(
+    () => divisiones.filter((d) => d.torneoId === resolvedTorneoId),
+    [divisiones, resolvedTorneoId]
+  )
+
+  const resolvedDivId = useMemo(() => {
+    if (divId && divsDeTorneo.some((d) => d.id === divId)) return divId
+    return divsDeTorneo[0]?.id ?? ''
+  }, [divId, divsDeTorneo])
+
+  const [equipoSel, setEquipoSel] = useState<string | null>(null)
 
   /* ── Form crear equipo ── */
   const [formEq,     setFormEq]     = useState({ nombre: '', logoUrl: '' })
@@ -42,7 +58,7 @@ export default function V8_Equipos() {
   const [errEditJug,  setErrEditJug]  = useState('')
   const editFotoJugRef = useRef<HTMLInputElement>(null)
 
-  const equiposDiv   = equiposList.filter((e) => e.divisionId === divId)
+  const equiposDiv   = equiposList.filter((e) => e.divisionId === resolvedDivId)
   const equipoActual = equiposList.find((e) => e.id === equipoSel)
   const jugadoresEq  = jugadoresList
     .filter((j) => j.equipoId === equipoSel)
@@ -52,7 +68,7 @@ export default function V8_Equipos() {
   const handleChangeTorneo = (id: string) => {
     setTorneoId(id)
     const primeraDiv = divisiones.find((d) => d.torneoId === id)?.id ?? ''
-    setDivId(primeraDiv)
+    setDivId(primeraDiv || '')
     setEquipoSel(null)
     setEditEquipo(false)
     setEditJugId(null)
@@ -107,13 +123,13 @@ export default function V8_Equipos() {
     e.preventDefault()
     if (!formEq.nombre.trim()) { setErrEq('El nombre es obligatorio'); return }
     if (!formEq.logoUrl)       { setErrEq('Cargá una imagen de logo'); return }
-    if (!divId)                { setErrEq('Seleccioná una división'); return }
+    if (!resolvedDivId)       { setErrEq('Seleccioná una división'); return }
     if (equiposDiv.some((eq) => eq.nombre.toLowerCase() === formEq.nombre.trim().toLowerCase())) {
       setErrEq('Ya existe un equipo con ese nombre en esta división'); return
     }
     const nuevo: Equipo = {
-      id:         `eq-${Date.now()}`,
-      divisionId: divId,
+      id:         nextMockId('eq'),
+      divisionId: resolvedDivId,
       nombre:     formEq.nombre.trim(),
       color:      '#1A1A1A',
       logoUrl:    formEq.logoUrl,
@@ -163,7 +179,7 @@ export default function V8_Equipos() {
     if (isNaN(dorsal) || dorsal < 0 || dorsal > 99) { setErrJug('Dorsal inválido (0–99)'); return }
     if (jugadoresEq.some((j) => j.dorsal === dorsal)) { setErrJug('Ese dorsal ya está en uso'); return }
     const nuevo: Jugador = {
-      id:       `j-${Date.now()}`,
+      id:       nextMockId('j'),
       equipoId: equipoSel!,
       nombre:   formJug.nombre.trim(),
       apellido: formJug.apellido.trim(),
@@ -233,7 +249,7 @@ export default function V8_Equipos() {
         <div>
           <label className={LABEL_CLS}>Torneo</label>
           <select
-            value={torneoId}
+            value={resolvedTorneoId}
             onChange={(e) => handleChangeTorneo(e.target.value)}
             className={SELECT_CLS}
           >
@@ -245,7 +261,7 @@ export default function V8_Equipos() {
         <div>
           <label className={LABEL_CLS}>División</label>
           <select
-            value={divId}
+            value={resolvedDivId}
             onChange={(e) => handleChangeDiv(e.target.value)}
             className={SELECT_CLS}
             disabled={divsDeTorneo.length === 0}
@@ -297,14 +313,14 @@ export default function V8_Equipos() {
             </div>
           )}
 
-          {equiposDiv.length === 0 && divId && (
+          {equiposDiv.length === 0 && resolvedDivId && (
             <p className="text-[#444] text-xs font-bold tracking-widest uppercase mb-4">
               Sin equipos en esta división
             </p>
           )}
 
           {/* Form nuevo equipo */}
-          {divId && (
+          {resolvedDivId && (
             <div className="bg-[#131313] border border-[#2A2A2A] p-4">
               <p className="text-white font-black text-sm uppercase tracking-wider mb-4">+ Agregar equipo</p>
               <form onSubmit={handleCrearEq} className="flex flex-col gap-4">

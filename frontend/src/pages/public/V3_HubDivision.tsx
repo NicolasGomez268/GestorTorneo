@@ -1,10 +1,14 @@
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { useAdminStore }  from '../../stores/adminStore'
+import { useAdminStore } from '../../stores/adminStore'
 import { statsJugadores } from '../../data/statsJugadores'
-import type { Partido }   from '../../data/tipos'
-import Container          from '../../components/Container'
-import EquipoLogo         from '../../components/EquipoLogo'
+import type { Partido, Torneo, Division } from '../../data/tipos'
+import Container from '../../components/Container'
+import EquipoLogo from '../../components/EquipoLogo'
+import {
+  obtenerDivisionPublica,
+  obtenerTorneoPublico,
+} from '../../lib/torneos-publico'
 
 type Tab = 'posiciones' | 'goleadores' | 'fixture' | 'proximos' | 'playoff'
 
@@ -26,16 +30,50 @@ const DESKTOP_TABS: { key: Tab; label: string }[] = [
 
 export default function V3_HubDivision() {
   const { torneoId, divId } = useParams()
-  const { search }  = useLocation()
-  const navigate    = useNavigate()
-  const activeTab   = getTab(search)
-  const { torneos, divisiones, equipos, partidos, jugadores } = useAdminStore()
+  const { search } = useLocation()
+  const navigate = useNavigate()
+  const activeTab = getTab(search)
 
-  const torneo   = torneos.find((t) => t.id === torneoId)
-  const division = divisiones.find((d) => d.id === divId)
+  const [torneo, setTorneo] = useState<Torneo | null>(null)
+  const [division, setDivision] = useState<Division | null>(null)
+  const [cargandoMeta, setCargandoMeta] = useState(true)
+
+  useEffect(() => {
+    if (!torneoId || !divId) return
+    let ok = true
+    ;(async () => {
+      setCargandoMeta(true)
+      try {
+        const [t, d] = await Promise.all([
+          obtenerTorneoPublico(torneoId),
+          obtenerDivisionPublica(torneoId, divId),
+        ])
+        if (!ok) return
+        setTorneo(t)
+        setDivision(d)
+      } finally {
+        if (ok) setCargandoMeta(false)
+      }
+    })()
+    return () => {
+      ok = false
+    }
+  }, [torneoId, divId])
+
+  if (cargandoMeta) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[#888] text-xs uppercase tracking-widest">
+        Cargando…
+      </div>
+    )
+  }
 
   if (!torneo || !division) {
-    return <div className="min-h-screen flex items-center justify-center text-[#888]">División no encontrada</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[#888]">
+        División no encontrada
+      </div>
+    )
   }
 
   const tabUrl = (key: Tab) =>
@@ -88,7 +126,7 @@ export default function V3_HubDivision() {
         {activeTab === 'posiciones' && <TabPosiciones divId={divId!} torneoId={torneoId!} />}
         {activeTab === 'goleadores' && <TabGoleadores divId={divId!} />}
         {activeTab === 'fixture'    && <TabFixture    divId={divId!} torneoId={torneoId!} />}
-        {activeTab === 'proximos'   && <TabProximos   divId={divId!} torneoId={torneoId!} />}
+        {activeTab === 'proximos'   && <TabProximos   divId={divId!} />}
         {activeTab === 'playoff'    && <TabPlayoff    divId={divId!} torneoId={torneoId!} />}
       </Container>
     </div>
@@ -348,7 +386,7 @@ function TabFixture({ divId, torneoId }: { divId: string; torneoId: string }) {
 /* ══════════════════════════════════════
    TAB 4 — PRÓXIMOS
 ══════════════════════════════════════ */
-function TabProximos({ divId, torneoId }: { divId: string; torneoId: string }) {
+function TabProximos({ divId }: { divId: string }) {
   const { partidos } = useAdminStore()
   const proximos = partidos
     .filter((p) => p.divisionId === divId && p.estado === 'pendiente' && p.fase === 'regular')
@@ -366,13 +404,13 @@ function TabProximos({ divId, torneoId }: { divId: string; torneoId: string }) {
   return (
     <div className="flex flex-col gap-4">
       {proximos.map((p) => (
-        <ProximoCard key={p.id} partido={p} torneoId={torneoId} divId={divId} />
+        <ProximoCard key={p.id} partido={p} />
       ))}
     </div>
   )
 }
 
-function ProximoCard({ partido: p, torneoId, divId }: { partido: Partido; torneoId: string; divId: string }) {
+function ProximoCard({ partido: p }: { partido: Partido }) {
   const [countdown, setCountdown] = useState('')
 
   useEffect(() => {

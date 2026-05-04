@@ -1,29 +1,28 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../stores/authStore'
+import { puedeAccederAdmin, useAuthStore } from '../stores/authStore'
 
 export default function LoginPage() {
-  const [user, setUser]   = useState('')
-  const [pass, setPass]   = useState('')
-  const [error, setError] = useState(false)
+  const [email, setEmail] = useState('')
+  const [pass, setPass] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const login   = useAuthStore((s) => s.login)
-  const isAdmin = useAuthStore((s) => s.isAdmin)
+  const login = useAuthStore((s) => s.login)
+  const user = useAuthStore((s) => s.user)
+  const rol = useAuthStore((s) => s.rol)
+  const error = useAuthStore((s) => s.error)
   const navigate = useNavigate()
 
-  // Si ya está logueado, redirigir directo al admin
   useEffect(() => {
-    if (isAdmin) navigate('/admin', { replace: true })
-  }, [isAdmin, navigate])
+    if (user && puedeAccederAdmin(rol)) navigate('/admin', { replace: true })
+  }, [user, rol, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const ok = await login(user, pass)
+    const ok = await login(email, pass)
     setLoading(false)
     if (ok) navigate('/admin', { replace: true })
-    else setError(true)
   }
 
   return (
@@ -33,17 +32,17 @@ export default function LoginPage() {
           MI TORNEO
         </h1>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-5">
           <div>
             <label className="text-[#888] text-xs uppercase tracking-widest font-bold block mb-2">
-              Usuario
+              Email
             </label>
             <input
-              type="text"
-              value={user}
-              onChange={(e) => { setUser(e.target.value); setError(false) }}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-[#0A0A0A] border-b border-[#2A2A2A] focus:border-[#FF6B00] text-white px-0 py-3 text-base outline-none transition-colors"
-              autoComplete="username"
+              autoComplete="email"
               autoFocus
             />
           </div>
@@ -55,16 +54,14 @@ export default function LoginPage() {
             <input
               type="password"
               value={pass}
-              onChange={(e) => { setPass(e.target.value); setError(false) }}
+              onChange={(e) => setPass(e.target.value)}
               className="w-full bg-[#0A0A0A] border-b border-[#2A2A2A] focus:border-[#FF6B00] text-white px-0 py-3 text-base outline-none transition-colors"
               autoComplete="current-password"
             />
           </div>
 
           {error && (
-            <p className="text-[#FF4444] text-xs font-bold text-center tracking-wider">
-              Usuario o contraseña incorrectos
-            </p>
+            <p className="text-[#FF4444] text-xs font-bold text-center tracking-wider">{error}</p>
           )}
 
           <button
@@ -77,6 +74,7 @@ export default function LoginPage() {
         </form>
 
         <button
+          type="button"
           onClick={() => navigate('/')}
           className="mt-6 w-full text-[#555] hover:text-white text-xs font-bold tracking-widest uppercase transition-colors"
         >

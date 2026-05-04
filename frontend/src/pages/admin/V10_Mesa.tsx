@@ -88,7 +88,7 @@ export default function V10_Mesa() {
       jugadoresLocal:     jugadores.filter((j) => j.equipoId === local.id),
       jugadoresVisitante: jugadores.filter((j) => j.equipoId === visitante.id),
     })
-  }, [partidoId])
+  }, [partidoId, iniciarPartido])
 
   // Reloj
   useEffect(() => {
@@ -98,10 +98,10 @@ export default function V10_Mesa() {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
-  }, [corriendo])
+  }, [corriendo, tickReloj])
 
   // Reset al desmontar
-  useEffect(() => () => { reset() }, [])
+  useEffect(() => () => { reset() }, [reset])
 
   const mins = String(Math.floor(tiempoRestante / 60)).padStart(2, '0')
   const secs = String(tiempoRestante % 60).padStart(2, '0')

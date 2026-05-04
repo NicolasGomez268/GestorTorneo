@@ -1,29 +1,64 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import html2canvas from 'html2canvas'
-import { useAdminStore }  from '../../stores/adminStore'
+import { useAdminStore } from '../../stores/adminStore'
 import { statsJugadores } from '../../data/statsJugadores'
-import Container          from '../../components/Container'
-import EquipoLogo         from '../../components/EquipoLogo'
+import type { Division } from '../../data/tipos'
+import Container from '../../components/Container'
+import EquipoLogo from '../../components/EquipoLogo'
+import { obtenerDivisionPublica } from '../../lib/torneos-publico'
 
 export default function V5_Partido() {
   const { torneoId, divId, partidoId } = useParams()
   const navigate = useNavigate()
-  const { partidos, equipos, divisiones } = useAdminStore()
+  const { partidos, equipos } = useAdminStore()
 
-  const [boxTab, setBoxTab]         = useState<'local' | 'visitante'>('local')
-  const [modalGol, setModalGol]     = useState(false)
-  const [modalCamp, setModalCamp]   = useState(false)
+  const [boxTab, setBoxTab] = useState<'local' | 'visitante'>('local')
+  const [modalGol, setModalGol] = useState(false)
+  const [modalCamp, setModalCamp] = useState(false)
   const [descargando, setDescargando] = useState(false)
 
-  const refGoleador  = useRef<HTMLDivElement>(null)
-  const refCampeon   = useRef<HTMLDivElement>(null)
+  const refGoleador = useRef<HTMLDivElement>(null)
+  const refCampeon = useRef<HTMLDivElement>(null)
 
-  const partido  = partidos.find((p) => p.id === partidoId)
-  const division = divisiones.find((d) => d.id === divId)
+  const partido = partidos.find((p) => p.id === partidoId)
+  const [division, setDivision] = useState<Division | null>(null)
+  const [cargandoDiv, setCargandoDiv] = useState(true)
 
-  if (!partido || !division) {
-    return <div className="min-h-screen flex items-center justify-center text-[#888]">Partido no encontrado</div>
+  useEffect(() => {
+    if (!torneoId || !divId) return
+    let ok = true
+    ;(async () => {
+      setCargandoDiv(true)
+      const d = await obtenerDivisionPublica(torneoId, divId)
+      if (ok) {
+        setDivision(d)
+        setCargandoDiv(false)
+      }
+    })()
+    return () => {
+      ok = false
+    }
+  }, [torneoId, divId])
+
+  if (!partido) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[#888]">Partido no encontrado</div>
+    )
+  }
+
+  if (cargandoDiv) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[#888] text-xs uppercase tracking-widest">
+        Cargando…
+      </div>
+    )
+  }
+
+  if (!division) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[#888]">División no encontrada</div>
+    )
   }
 
   const statsLocal     = statsJugadores.filter((s) => s.partidoId === partidoId && s.equipo === 'local')

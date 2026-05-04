@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminStore } from '../../stores/adminStore'
 import type { Partido, RondaPartido } from '../../data/tipos'
@@ -15,6 +15,8 @@ const LABEL_RONDA: Record<string, string> = {
 
 export default function V9_Fixture() {
   const { divisiones, equipos: equiposMock, partidos: partidosMock, addPartido, removePartido } = useAdminStore()
+  const mockIdSeq = useRef(0)
+  const nextMockId = (prefijo: string) => `${prefijo}-${++mockIdSeq.current}`
   const [divId,    setDivId]    = useState(divisiones[0]?.id ?? '')
   const [formOpen, setFormOpen] = useState(false)
 
@@ -65,7 +67,7 @@ export default function V9_Fixture() {
     const fechaNum  = formP.fase === 'regular' ? (parseInt(formP.fechaNumero) || 1) : 99
 
     const nuevo: Partido = {
-      id:          `p-${Date.now()}`,
+      id:          nextMockId('p'),
       divisionId:  divId,
       fechaNumero: fechaNum,
       fechaHora:   formP.fechaHora,

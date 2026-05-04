@@ -18,7 +18,7 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 export const firestore = getFirestore(app)
 export const storage = getStorage(app)
-export const functions = getFunctions(app)
+export const functions = getFunctions(app, 'us-east5')
 
 const useEmulators = import.meta.env.VITE_USE_EMULATORS
   ? import.meta.env.VITE_USE_EMULATORS === 'true'

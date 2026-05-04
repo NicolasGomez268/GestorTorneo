@@ -1,11 +1,19 @@
 export interface Torneo {
   id: string
+  idOrganizacion: string
+  claveCompetencia: string
   nombre: string
   deporte: string
   temporada: string
   estado: 'activo' | 'finalizado' | 'proximo'
   descripcion: string
   logoUrl?: string
+}
+
+export interface Organizacion {
+  id: string
+  nombre: string
+  estado: 'activa' | 'suspendida'
 }
 
 export interface Division {

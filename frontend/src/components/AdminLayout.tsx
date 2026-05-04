@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/authStore'
 
 export default function AdminLayout() {
   const logout = useAuthStore((s) => s.logout)
+  const rol = useAuthStore((s) => s.rol)
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -22,10 +23,13 @@ export default function AdminLayout() {
         <div className="flex items-center gap-4">
           <nav className="hidden sm:flex gap-2 text-xs font-bold tracking-wider uppercase">
             {[
-              { to: '/admin',         label: 'Dashboard' },
-              { to: '/admin/torneo',  label: 'Torneo'    },
-              { to: '/admin/equipos', label: 'Equipos'   },
-              { to: '/admin/fixture', label: 'Fixture'   },
+              { to: '/admin', label: 'Dashboard' },
+              ...(rol === 'superadmin'
+                ? [{ to: '/admin/organizaciones' as const, label: 'Orgs' }]
+                : []),
+              { to: '/admin/torneo', label: 'Torneo' },
+              { to: '/admin/equipos', label: 'Equipos' },
+              { to: '/admin/fixture', label: 'Fixture' },
             ].map(({ to, label }) => (
               <NavLink
                 key={to}

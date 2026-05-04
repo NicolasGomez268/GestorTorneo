@@ -1,18 +1,54 @@
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAdminStore } from '../../stores/adminStore'
-import Container     from '../../components/Container'
-import EquipoLogo    from '../../components/EquipoLogo'
+import Container from '../../components/Container'
+import EquipoLogo from '../../components/EquipoLogo'
+import type { Division } from '../../data/tipos'
+import { obtenerDivisionPublica } from '../../lib/torneos-publico'
 
 export default function V4_Equipo() {
   const { torneoId, divId, equipoId } = useParams()
   const navigate = useNavigate()
-  const { equipos, jugadores, partidos, divisiones } = useAdminStore()
+  const { equipos, jugadores, partidos } = useAdminStore()
 
-  const equipo   = equipos.find((e) => e.id === equipoId)
-  const division = divisiones.find((d) => d.id === divId)
+  const equipo = equipos.find((e) => e.id === equipoId)
+  const [division, setDivision] = useState<Division | null>(null)
+  const [cargandoDiv, setCargandoDiv] = useState(true)
 
-  if (!equipo || !division) {
-    return <div className="min-h-screen flex items-center justify-center text-[#888]">Equipo no encontrado</div>
+  useEffect(() => {
+    if (!torneoId || !divId) return
+    let ok = true
+    ;(async () => {
+      setCargandoDiv(true)
+      const d = await obtenerDivisionPublica(torneoId, divId)
+      if (ok) {
+        setDivision(d)
+        setCargandoDiv(false)
+      }
+    })()
+    return () => {
+      ok = false
+    }
+  }, [torneoId, divId])
+
+  if (!equipo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[#888]">Equipo no encontrado</div>
+    )
+  }
+
+  if (cargandoDiv) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[#888] text-xs uppercase tracking-widest">
+        Cargando…
+      </div>
+    )
+  }
+
+  if (!division) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[#888]">División no encontrada</div>
+    )
   }
 
   const roster = jugadores

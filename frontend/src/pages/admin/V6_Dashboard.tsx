@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom'
-import { equipos }  from '../../data/equipos'
+import { equipos } from '../../data/equipos'
 import { partidos } from '../../data/partidos'
+import { useAuthStore } from '../../stores/authStore'
 
-const CARDS = [
+const CARDS_BASE = [
   {
     to:    '/admin/torneo',
     label: 'Gestionar Torneo',
@@ -34,6 +35,15 @@ const CARDS = [
   },
 ]
 
+const CARD_ORGS = {
+  to: '/admin/organizaciones',
+  label: 'Organizaciones',
+  desc: 'Alta de club y usuario organizador.',
+  cta: 'CONFIGURAR',
+  icon: <TournamentIcon />,
+  mesa: false,
+} as const
+
 const ACTIVIDAD = [
   { texto: 'Planilla de juego finalizada: Shadow Titans vs Neon Drifters',  hora: '14:32' },
   { texto: 'Nuevo jugador inscripto: Marcos Vega — Shadow Titans',          hora: '12:15' },
@@ -42,9 +52,12 @@ const ACTIVIDAD = [
 ]
 
 export default function V6_Dashboard() {
-  const navigate  = useNavigate()
+  const navigate = useNavigate()
+  const rol = useAuthStore((s) => s.rol)
   const pendientes = partidos.filter((p) => p.estado === 'pendiente').length
-  const totalEq    = equipos.length
+  const totalEq = equipos.length
+
+  const CARDS = rol === 'superadmin' ? [CARD_ORGS, ...CARDS_BASE] : CARDS_BASE
 
   return (
     <div>
